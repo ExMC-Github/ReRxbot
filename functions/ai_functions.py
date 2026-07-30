@@ -334,14 +334,15 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理AI对话的工作线程"""
     from feature import get_message_text, send_group_msg, send_group_single_forward_msg
-    
+    import datetime
+
     user_input = get_message_text(msg)[len(f"{config['command_prefix']}{config['ai_shortname']} "):]
     user_id = msg.get('sender', {}).get('user_id')
     nickname = msg.get('sender', {}).get('nickname')
     
     # 构建额外的提示信息
-    ai_append_hp_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']}"
-    ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']}"
+    ai_append_hp_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
+    ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
     # 获取或初始化该群的历史消息
     if group_id not in ai_conversation_history:
@@ -419,11 +420,12 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self_id, ai_manager):
     """处理@触发的AI对话的工作线程"""
     from feature import send_group_msg, send_group_single_forward_msg
+    import datetime
     
     user_id = original_msg.get('sender', {}).get('user_id')
     nickname = original_msg.get('sender', {}).get('nickname')
     
-    ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']}"
+    ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
     if group_id not in at_ai_conversation_history:
         # 使用配置中at对应的规则文件
