@@ -1,0 +1,10 @@
+.vscode/
+__pycache__/
+functions/__pycache__/
+ai_memory/
+logs/
+old_project/
+.venv/
+app.log
+*.log
+*.txt.zst
