@@ -12,28 +12,46 @@ import sys
 from loguru import logger
 
 
-# 视觉模型客户端缓存
-_vit_client = None
+# 视觉模型客户端缓存（按AI类型隔离：ai / at / defined）
+_vit_clients = {}
 
 
-def get_vit_client(config):
-    """获取视觉模型客户端（懒加载，避免重复创建）"""
-    global _vit_client
-    if _vit_client is None:
+def get_vit_client(config, client_type="ai"):
+    """获取指定AI类型的视觉模型客户端（懒加载，按类型隔离）
+    
+    Args:
+        config: 配置字典
+        client_type: AI类型（"ai" / "at" / "defined"）
+    """
+    if client_type not in _vit_clients:
         from openai import OpenAI
-        _vit_client = OpenAI(
+        # 配置代理（如果配置中指定）
+        http_client = None
+        http_proxy = config.get('vit_http_proxy', '')
+        https_proxy = config.get('vit_https_proxy', '')
+        if http_proxy or https_proxy:
+            import httpx
+            mounts = {}
+            if http_proxy:
+                mounts["http://"] = httpx.HTTPTransport(proxy=http_proxy)
+            if https_proxy:
+                mounts["https://"] = httpx.HTTPTransport(proxy=https_proxy)
+            http_client = httpx.Client(mounts=mounts)
+        _vit_clients[client_type] = OpenAI(
             api_key=config.get('vit_api_key', ''),
-            base_url=config.get('vit_base_url', '')
+            base_url=config.get('vit_base_url', ''),
+            http_client=http_client
         )
-    return _vit_client
+    return _vit_clients[client_type]
 
 
-def analyze_image(image_url, config):
+def analyze_image(image_url, config, client_type="ai"):
     """分析单张图片并返回文字描述
     
     Args:
         image_url: 图片URL
         config: 配置字典
+        client_type: AI类型（"ai" / "at" / "defined"），用于隔离视觉客户端
         
     Returns:
         图片的文字描述
@@ -48,7 +66,7 @@ def analyze_image(image_url, config):
         return "[图片URL为空]"
     
     try:
-        vit_client = get_vit_client(config)
+        vit_client = get_vit_client(config, client_type)
         prompt = config.get('vit_prompt', '用中文尽可能详细地描述这张图片')
         response = vit_client.chat.completions.create(
             model=config.get('vit_model', 'gemini-3-flash-preview'),
@@ -69,19 +87,20 @@ def analyze_image(image_url, config):
         )
         
         description = response.choices[0].message.content or ""
-        logger.info(f"图片分析完成: {description[:100]}...")
+        logger.info(f"[{client_type}] 图片分析完成: {description[:100]}...")
         return description
     except Exception as e:
-        logger.error(f"图片分析失败: {e}")
+        logger.error(f"[{client_type}] 图片分析失败: {e}")
         return f"[图片分析失败: {str(e)}]"
 
 
-def extract_image_descriptions(msg, config):
+def extract_image_descriptions(msg, config, client_type="ai"):
     """从消息中提取所有图片并分析，返回图片描述文本
     
     Args:
         msg: OneBot消息对象
         config: 配置字典
+        client_type: AI类型（"ai" / "at" / "defined"），用于隔离视觉客户端
         
     Returns:
         图片描述文本（多张图片用换行分隔），无图片时返回空字符串
@@ -97,7 +116,7 @@ def extract_image_descriptions(msg, config):
             image_data = segment.get('data', {})
             image_url = image_data.get('url', '')
             if image_url:
-                description = analyze_image(image_url, config)
+                description = analyze_image(image_url, config, client_type)
                 image_descriptions.append(f"【图片】{description}【/图片】")
     
     return '\n'.join(image_descriptions)
@@ -352,7 +371,7 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     message_id = msg.get('message_id')  # 获取消息ID
     
     # 提取并分析图片
-    image_content = extract_image_descriptions(msg, config)
+    image_content = extract_image_descriptions(msg, config, client_type="defined")
     if image_content:
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
@@ -437,7 +456,7 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     nickname = msg.get('sender', {}).get('nickname')
     
     # 提取并分析图片
-    image_content = extract_image_descriptions(msg, config)
+    image_content = extract_image_descriptions(msg, config, client_type="ai")
     if image_content:
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
@@ -527,7 +546,7 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
     nickname = original_msg.get('sender', {}).get('nickname')
     
     # 提取并分析图片
-    image_content = extract_image_descriptions(original_msg, config)
+    image_content = extract_image_descriptions(original_msg, config, client_type="at")
     if image_content:
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     

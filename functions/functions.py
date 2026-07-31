@@ -1,7 +1,7 @@
 from loguru import logger
 import json, io, dis, sys, traceback
-from feature import send_group_msg, exec_and_capture, set_group_special_title
-import builtins
+from feature import send_group_msg, exec_and_capture, set_group_special_title, set_group_ban
+import builtins, random
 
 def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     msg = json.loads(message)
@@ -41,6 +41,9 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
             set_group_special_title(ws,group_id,user_id,raw_message[5:])
+
+        if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019:
+            set_group_ban(ws,group_id,user_id,random.randint(180,300))
     
     # 处理AI相关命令
     if ai_client and ai_manager:
