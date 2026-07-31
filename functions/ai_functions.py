@@ -12,6 +12,97 @@ import sys
 from loguru import logger
 
 
+# 视觉模型客户端缓存
+_vit_client = None
+
+
+def get_vit_client(config):
+    """获取视觉模型客户端（懒加载，避免重复创建）"""
+    global _vit_client
+    if _vit_client is None:
+        from openai import OpenAI
+        _vit_client = OpenAI(
+            api_key=config.get('vit_api_key', ''),
+            base_url=config.get('vit_base_url', '')
+        )
+    return _vit_client
+
+
+def analyze_image(image_url, config):
+    """分析单张图片并返回文字描述
+    
+    Args:
+        image_url: 图片URL
+        config: 配置字典
+        
+    Returns:
+        图片的文字描述
+    """
+    if not config.get('vit_enable', False):
+        return "[图片识别功能未启用]"
+    
+    # 去除URL中的反引号（QQ消息中URL可能被反引号包裹）
+    image_url = image_url.strip('`').strip()
+    
+    if not image_url:
+        return "[图片URL为空]"
+    
+    try:
+        vit_client = get_vit_client(config)
+        prompt = config.get('vit_prompt', '用中文尽可能详细地描述这张图片')
+        response = vit_client.chat.completions.create(
+            model=config.get('vit_model', 'gemini-3-flash-preview'),
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_url}
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }],
+            stream=False
+        )
+        
+        description = response.choices[0].message.content or ""
+        logger.info(f"图片分析完成: {description[:100]}...")
+        return description
+    except Exception as e:
+        logger.error(f"图片分析失败: {e}")
+        return f"[图片分析失败: {str(e)}]"
+
+
+def extract_image_descriptions(msg, config):
+    """从消息中提取所有图片并分析，返回图片描述文本
+    
+    Args:
+        msg: OneBot消息对象
+        config: 配置字典
+        
+    Returns:
+        图片描述文本（多张图片用换行分隔），无图片时返回空字符串
+    """
+    if not config.get('vit_enable', False):
+        return ""
+    
+    message_segments = msg.get('message', [])
+    image_descriptions = []
+    
+    for segment in message_segments:
+        if segment.get('type') == 'image':
+            image_data = segment.get('data', {})
+            image_url = image_data.get('url', '')
+            if image_url:
+                description = analyze_image(image_url, config)
+                image_descriptions.append(f"【图片】{description}【/图片】")
+    
+    return '\n'.join(image_descriptions)
+
+
 # 存储每个群的对话历史
 ai_conversation_history = {}
 ai_threads = {}
@@ -260,6 +351,11 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     nickname = msg.get('sender', {}).get('nickname')
     message_id = msg.get('message_id')  # 获取消息ID
     
+    # 提取并分析图片
+    image_content = extract_image_descriptions(msg, config)
+    if image_content:
+        user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
+    
     # 构建额外的提示信息
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']}"
     
@@ -339,6 +435,11 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     user_input = get_message_text(msg)[len(f"{config['command_prefix']}{config['ai_shortname']} "):]
     user_id = msg.get('sender', {}).get('user_id')
     nickname = msg.get('sender', {}).get('nickname')
+    
+    # 提取并分析图片
+    image_content = extract_image_descriptions(msg, config)
+    if image_content:
+        user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
     # 构建额外的提示信息
     ai_append_hp_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
@@ -424,6 +525,11 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
     
     user_id = original_msg.get('sender', {}).get('user_id')
     nickname = original_msg.get('sender', {}).get('nickname')
+    
+    # 提取并分析图片
+    image_content = extract_image_descriptions(original_msg, config)
+    if image_content:
+        user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
@@ -527,7 +633,7 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
         else:
             send_group_msg(ws, group_id, f"当前群没有活跃的 {config['ai_name']} 对话历史，无需重置。", True)
     
-    elif is_at_me and at_full_text:
+    elif is_at_me and (at_full_text or any(seg.get("type") == "image" for seg in msg.get("message", []))):
         if config.get('at_ai_enable', False):
             if group_id in at_ai_threads and at_ai_threads[group_id].is_alive():
                 send_group_msg(ws, group_id, f"本群已有 {config['ai_name']} 对话（被@触发）正在进行，请等待完成后再试", True)

@@ -14,5 +14,11 @@ config = {
         "normal": "default.txt",
         "defined": "defined.txt",
         "at": "default.txt"
-    }
+    },
+    # 视觉(VIT)配置 - 让AI能看图片
+    "vit_enable": True,
+    "vit_base_url": "https://yunwu.ai/v1",
+    "vit_api_key": "sk-R2ObQ5uXm4m4mGUpz70YWfzEIPX2bEBFVDmPnlMvbFDVoPvj",
+    "vit_model": "gemini-3-flash-preview",
+    "vit_prompt": "用中文尽可能详细地描述这张图片"
 }
