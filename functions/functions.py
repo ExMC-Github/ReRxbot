@@ -42,7 +42,7 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
             set_group_special_title(ws,group_id,user_id,raw_message[5:])
 
-        if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019:
+        if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019 and raw_message.startswith("那我呢"):
             set_group_ban(ws,group_id,user_id,random.randint(180,300))
     
     # 处理AI相关命令
