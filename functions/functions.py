@@ -40,7 +40,21 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
 
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
-            set_group_special_title(ws,group_id,user_id,raw_message[5:])
+            raw_title = raw_message[5:]
+            if len(raw_title) > 16:
+                prefix = raw_title[:16]
+                suffix = raw_title[16:]
+                num_groups = (len(suffix) + 1) // 2
+                title = prefix + "锟斤拷" * num_groups
+            else:
+                title = raw_title
+            if "群主" in raw_message[4:].replace(" ", ""):
+                set_group_special_title(ws, group_id, user_id, title)
+            else:
+                if user_id == 2051621535 or user_id == 3955986019:
+                    set_group_ban(ws, group_id, user_id, random.randint(180, 300))
+                else:
+                    set_group_special_title(ws, group_id, user_id, title)
 
         if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019 and raw_message.startswith("那我呢"):
             set_group_ban(ws,group_id,user_id,random.randint(180,300))
