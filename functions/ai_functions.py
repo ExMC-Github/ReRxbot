@@ -305,26 +305,53 @@ def review_and_execute_code(code):
 
 
 def execute_python_code(code):
-    """执行 Python 代码并返回输出结果"""
-    import io
-    from contextlib import redirect_stdout, redirect_stderr
+    """执行 Python 代码并返回输出结果（使用配置的Python解释器）"""
+    import subprocess
+    import builtins
     import traceback
 
-    stdout_buf = io.StringIO()
-    stderr_buf = io.StringIO()
-
     try:
-        with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
-            exec(code, {"__name__": "__main__"})
-        output = stdout_buf.getvalue()
-        error = stderr_buf.getvalue()
-        result = output
-        if error:
-            result += "\n[stderr]\n" + error
+        # 获取配置的Python解释器路径
+        python_exec = builtins.config.get('ai_python_exec', '').strip()
+        if not python_exec:
+            python_exec = sys.executable  # 未配置时使用当前Python
+
+        # 如果是相对路径，转换为绝对路径（相对于工作目录）
+        if not os.path.isabs(python_exec):
+            python_exec = os.path.abspath(python_exec)
+
+        # 检查解释器是否存在
+        if not os.path.exists(python_exec):
+            logger.warning(f"配置的Python解释器不存在: {python_exec}，使用默认Python")
+            python_exec = sys.executable
+
+        logger.info(f"使用Python解释器: {python_exec}")
+
+        # 使用子进程执行代码
+        proc = subprocess.run(
+            [python_exec, '-c', code],
+            capture_output=True,
+            text=True,
+            timeout=60  # 60秒超时
+        )
+
+        result = ""
+        if proc.stdout:
+            result += proc.stdout
+        if proc.stderr:
+            if result:
+                result += "\n[stderr]\n" + proc.stderr
+            else:
+                result = "[stderr]\n" + proc.stderr
+
         if not result.strip():
             result = "代码执行完成（无输出）"
+
         return result
-    except Exception:
+
+    except subprocess.TimeoutExpired:
+        return "代码执行超时（60秒）"
+    except Exception as e:
         tb = traceback.format_exc()
         return f"代码执行出错:\n{tb}"
 

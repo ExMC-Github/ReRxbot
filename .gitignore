@@ -8,3 +8,4 @@ old_project/
 app.log
 *.log
 *.txt.zst
+ai-embed-python/
