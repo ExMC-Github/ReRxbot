@@ -74,7 +74,7 @@ def on_open(ws):
     
 
 def main():
-    ws = websocket.WebSocketApp(f"ws://localhost:3001/?access_token=ReRxBot",on_open=on_open,on_message=on_message,on_error=on_error,on_close=on_close)
+    ws = websocket.WebSocketApp(f"ws://localhost:3001/?access_token=ExRFy123",on_open=on_open,on_message=on_message,on_error=on_error,on_close=on_close)
     ws.run_forever()
     return 0
 

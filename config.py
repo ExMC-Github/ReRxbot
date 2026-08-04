@@ -21,8 +21,8 @@ config = {
     "vit_api_key": "sk-R2ObQ5uXm4m4mGUpz70YWfzEIPX2bEBFVDmPnlMvbFDVoPvj",
     "vit_model": "gemini-3-flash-preview",
     "vit_prompt": "用中文尽可能详细地描述这张图片",
-    "vit_http_proxy": "http://192.168.11.117:7890",
-    "vit_https_proxy": "http://192.168.11.117:7890",
+    "vit_http_proxy": "http://127.0.0.1:7890",
+    "vit_https_proxy": "http://127.0.0.1:7890",
     # AI代码执行Python解释器路径（留空则使用系统默认Python）
     "ai_python_exec": "ai-embed-python/python.exe"
 }
