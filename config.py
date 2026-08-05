@@ -5,15 +5,15 @@ config = {
     "ai_key": "sk-f7ee59e46e1f4e54b86e28a485d2c41e",
     "ai_name": "DeepSeek",
     "ai_shortname": "dpsk",
-    "ai_model": "deepseek-chat",
+    "ai_model": "deepseek-v4-pro",
     "command_prefix": "ex.",
     "at_ai_enable": True,
     "ai_owner_group_future_mode": True,
     "ai_memory_dir": "ai_memory",
     "rules_defined": {
-        "normal": "default.txt",
+        "normal": "modern.txt",
         "defined": "defined.txt",
-        "at": "default.txt"
+        "at": "modern.txt"
     },
     # 视觉(VIT)配置 - 让AI能看图片
     "vit_enable": True,

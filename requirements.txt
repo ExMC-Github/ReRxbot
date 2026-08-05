@@ -1,3 +1,4 @@
 loguru
 websocket-client==1.9.0
 openai
+zstandard
