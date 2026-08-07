@@ -38,6 +38,9 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
         else:
             send_group_msg(ws,group_id,str(builtins.config["bot_admin_ids"])+" | "+str(user_id in builtins.config["bot_admin_ids"])+" | "+str(user_id)+" | "+str(self_id))
 
+    if raw_message == "test":
+        send_group_msg(ws,group_id,"状态正常")
+        
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
             raw_title = raw_message[5:]

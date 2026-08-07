@@ -130,6 +130,10 @@ at_ai_threads = {}
 defined_conversation_history = {}
 defined_threads = {}
 
+# 被AI忽略的用户（非机器人群中的"禁言"等效为忽略，AI不再接收该用户消息）
+# 格式: {group_id: set(user_ids)}
+ignored_users = {}
+
 
 # 定义可用的工具函数
 def get_available_tools():
@@ -139,17 +143,34 @@ def get_available_tools():
             "type": "function",
             "function": {
                 "name": "mute",
-                "description": "禁言群内指定用户。可以禁言当前用户或指定用户，支持自定义时长。",
+                "description": "禁言或忽略群内指定用户。在机器人群中将真实禁言，在其他群中将忽略该用户（AI不再接收其消息）。可以指定当前用户或其他用户，支持自定义时长（仅在机器人群中生效）。",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "user_id": {
                             "type": "integer",
-                            "description": "要禁言的用户QQ号，如果不指定则禁言当前用户"
+                            "description": "要禁言/忽略的用户QQ号，如果不指定则针对当前用户"
                         },
                         "duration": {
                             "type": "integer",
-                            "description": "禁言时长（秒），如果不指定则随机1-5分钟"
+                            "description": "禁言时长（秒），仅在机器人群中生效，如果不指定则随机1-5分钟"
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "unmute",
+                "description": "解除禁言或取消忽略群内指定用户。在机器人群中解除真实禁言，在其他群中取消忽略（AI恢复接收该用户消息）。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "user_id": {
+                            "type": "integer",
+                            "description": "要解除禁言/取消忽略的用户QQ号，如果不指定则针对当前用户"
                         }
                     },
                     "required": []
@@ -201,12 +222,35 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
         if tool_name == "mute":
             target_id = tool_args.get("user_id", user_id)
             duration = tool_args.get("duration", random.randint(60, 300))
-            if target_id == builtins.config["bot_admin_ids"]:
-                logger.warning(f"执行工具 {tool_name} 失败: 不能禁言机器人管理员")
+            if target_id in builtins.config["bot_admin_ids"]:
+                logger.warning(f"执行工具 {tool_name} 失败: 不能禁言/忽略机器人管理员")
                 return "Permission Denied"
-            logger.info(f"执行工具 {tool_name} 成功: 禁言用户 {target_id} {duration} 秒")
-            set_group_ban(ws, group_id, target_id, duration)
-            return f"已禁言用户 {target_id} {duration} 秒"
+            
+            # 机器人群使用真实禁言，其他群改为忽略用户（AI不再接收该用户消息）
+            if group_id == builtins.config.get("bot_group"):
+                logger.info(f"执行工具 {tool_name} 成功: 禁言用户 {target_id} {duration} 秒")
+                set_group_ban(ws, group_id, target_id, duration)
+                return f"已禁言用户 {target_id} {duration} 秒"
+            else:
+                if group_id not in ignored_users:
+                    ignored_users[group_id] = set()
+                ignored_users[group_id].add(target_id)
+                logger.info(f"执行工具 {tool_name} 成功: 在非机器人群 {group_id} 忽略用户 {target_id}")
+                return f"已忽略用户 {target_id}（非机器人群，AI将不再接收该用户的消息）"
+        
+        elif tool_name == "unmute":
+            target_id = tool_args.get("user_id", user_id)
+            if group_id == builtins.config.get("bot_group"):
+                set_group_ban(ws, group_id, target_id, 0)
+                logger.info(f"执行工具 {tool_name} 成功: 解除禁言用户 {target_id}")
+                return f"已解除禁言用户 {target_id}"
+            else:
+                if group_id in ignored_users and target_id in ignored_users[group_id]:
+                    ignored_users[group_id].discard(target_id)
+                    logger.info(f"执行工具 {tool_name} 成功: 取消忽略用户 {target_id}")
+                    return f"已取消忽略用户 {target_id}（AI将重新接收该用户的消息）"
+                else:
+                    return f"用户 {target_id} 未被忽略，无需操作"
         
         elif tool_name == "filedir":
             path = tool_args.get("path", ".")
@@ -433,8 +477,8 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         
         assistant_message = response.choices[0].message
         
-        # 处理工具调用（如果需要）
-        if config.get('ai_owner_group_future_mode', False) and group_id == config['bot_group']:
+        # 处理工具调用（如果需要）—— 所有群均启用工具调用
+        if config.get('ai_owner_group_future_mode', False):
             while process_tool_calls(ws, group_id, assistant_message, user_id, ai_client, defined_conversation_history[group_id]):
                 response = ai_client.chat.completions.create(
                     model=config['ai_model'],
@@ -488,7 +532,6 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
     # 构建额外的提示信息
-    ai_append_hp_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
     # 获取或初始化该群的历史消息
@@ -502,16 +545,10 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         ]
     
     # 添加用户消息到历史
-    if config.get('ai_owner_group_future_mode', False) and group_id == config['bot_group']:
-        ai_conversation_history[group_id].append({
-            "role": "user",
-            "content": f"{user_input} （{ai_append_hp_words}）"
-        })
-    else:
-        ai_conversation_history[group_id].append({
-            "role": "user",
-            "content": f"{user_input} （{ai_append_words}）"
-        })
+    ai_conversation_history[group_id].append({
+        "role": "user",
+        "content": f"{user_input} （{ai_append_words}）"
+    })
     
     try:
         # 第一次调用AI API
@@ -525,8 +562,8 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         
         assistant_message = response.choices[0].message
         
-        # 处理工具调用（如果需要）
-        if config.get('ai_owner_group_future_mode', False) and group_id == config['bot_group']:
+        # 处理工具调用（如果需要）—— 所有群均启用工具调用
+        if config.get('ai_owner_group_future_mode', False):
             while process_tool_calls(ws, group_id, assistant_message, user_id, ai_client, ai_conversation_history[group_id]):
                 # AI执行了工具调用，需要再次调用AI获取最终回复
                 response = ai_client.chat.completions.create(
@@ -604,8 +641,8 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
         
         assistant_message = response.choices[0].message
         
-        # 处理工具调用
-        if config.get('ai_owner_group_future_mode', False) and group_id == config['bot_group']:
+        # 处理工具调用 —— 所有群均启用工具调用
+        if config.get('ai_owner_group_future_mode', False):
             while process_tool_calls(ws, group_id, assistant_message, user_id, ai_client, at_ai_conversation_history[group_id]):
                 response = ai_client.chat.completions.create(
                     model=config['ai_model'],
@@ -643,6 +680,13 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
                        is_at_me, at_full_text, ai_manager):
     """处理AI相关的命令"""
     from feature import send_group_msg
+    
+    user_id = msg.get('sender', {}).get('user_id')
+    
+    # 检查该用户是否被AI忽略（非机器人群中mute等效为忽略，AI不再接收其消息）
+    # 机器人管理员不受忽略限制
+    if user_id and user_id in ignored_users.get(group_id, set()) and user_id not in config.get('bot_admin_ids', []):
+        return
     
     # 处理defined命令(使用defined.txt提示词)
     if raw_message.startswith("defined "):
