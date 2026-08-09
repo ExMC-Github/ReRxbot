@@ -1,0 +1,111 @@
+:Base py-tut.hlp>main
+1 Tutorial
+2 Contents=C_00006
+2 Whetting Your Appetite
+3 Where From Here=C_00010
+2 Using the Python Interpreter
+3 Invoking the Interpreter
+4 Argument Passing=C_00016
+4 Interactive Mode=C_00018
+3 The Interpreter and its Environment
+4 Error Handling=C_00022
+4 The Module Search Path=C_00024
+4 ``Compiled'' Python files=C_00026
+4 Executable Python scripts=C_00028
+4 The Interactive Startup File=C_00030
+3 Interactive Input Editing and History Substitution
+4 Line Editing=C_00034
+4 History Substitution=C_00036
+4 Key Bindings=C_00038
+4 Commentary=C_00040
+2 An Informal Introduction to Python
+3 Using Python as a Calculator
+4 Numbers=C_00046
+4 Strings=C_00048
+4 Lists=C_00050
+3 First Steps Towards Programming=C_00052
+2 More Control Flow Tools
+3 If Statements=C_00056
+3 For Statements=C_00058
+3 The range() Function=C_00060
+3 Break and Continue Statements, and Else Clauses on Loops=C_00062
+3 Pass Statements=C_00064
+3 Defining Functions=C_00066
+2 Odds and Ends
+3 More on Lists=C_00070
+3 The del statement=C_00072
+3 Tuples and Sequences=C_00074
+3 Dictionaries=C_00076
+3 More on Conditions=C_00078
+3 Comparing Sequences and Other Types=C_00080
+2 Modules
+3 More on Modules=C_00084
+3 Standard Modules=C_00086
+3 The dir() function=C_00088
+2 Output Formatting=C_00090
+2 Errors and Exceptions
+3 Syntax Errors=C_00094
+3 Exceptions=C_00096
+3 Handling Exceptions=C_00098
+3 Raising Exceptions=C_00100
+3 User-defined Exceptions=C_00102
+3 Defining Clean-up Actions=C_00104
+2 Classes
+3 A word about terminology=C_00108
+3 Python scopes and name spaces=C_00110
+3 A first look at classes
+4 Class definition syntax=C_00114
+4 Class objects=C_00116
+4 Instance objects=C_00118
+4 Method objects=C_00120
+3 Random remarks=C_00122
+3 Inheritance
+4 Multiple inheritance=C_00126
+3 Odds and ends=C_00128
+2 Recent Additions
+3 The Last Printed Expression=C_00132
+3 String Literals
+4 Double Quotes=C_00136
+4 Continuation Of String Literals=C_00138
+4 Triple-quoted strings=C_00140
+4 String Literal Juxtaposition=C_00142
+3 The Formatting Operator
+4 Basic Usage=C_00146
+4 Referencing Variables By Name=C_00148
+3 Optional Function Arguments
+4 Default Argument Values=C_00152
+4 Arbitrary Argument Lists=C_00154
+3 Lambda And Functional Programming Tools
+4 Lambda Forms=C_00158
+4 Map, Reduce and Filter
+5 Map.=C_00162
+5 Filter.=C_00164
+5 Reduce.=C_00166
+3 Continuation Lines Without Backslashes=C_00168
+3 Regular Expressions=C_00170
+3 Generalized Dictionaries=C_00172
+3 Miscellaneous New Built-in Functions=C_00174
+3 Else Clause For Try Statement=C_00176
+3 New Class Features in Release 1.1
+4 New Operator Overloading=C_00180
+4 Trapping Attribute Access=C_00182
+4 Calling a Class Instance=C_00184
+2 New in Release 1.2
+3 New Class Features=C_00188
+3 Unix Signal Handling=C_00190
+3 Exceptions Can Be Classes=C_00192
+3 Object Persistency and Object Copying
+4 Persistent Objects=C_00196
+4 Copying Objects=C_00198
+3 Documentation Strings=C_00200
+3 Customizing Import and Built-Ins=C_00202
+3 Python and the World-Wide Web=C_00204
+3 Miscellaneous=C_00206
+2 New in Release 1.3
+3 Keyword Arguments=C_00210
+3 Changes to the WWW and Internet tools=C_00212
+3 Other Language Changes=C_00214
+3 Changes to Built-in Operations=C_00216
+3 Library Changes=C_00218
+3 Other Changes=C_00220
+2 About this document ...=C_00222

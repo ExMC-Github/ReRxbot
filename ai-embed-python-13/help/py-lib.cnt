@@ -1,0 +1,183 @@
+:Base py-lib.hlp>main
+1 Library reference
+2 Introduction=C_00001
+2 Built-in Types, Exceptions and Functions
+4 Truth Value Testing=C_00131
+4 Boolean Operations=C_00133
+4 Comparisons=C_00137
+4 Numeric Types
+5 Bit-string Operations on Integer Types=C_00173
+4 Sequence Types
+5 More String Operations=C_00170
+5 Mutable Sequence Types=C_00147
+4 Mapping Types=C_00161
+4 Other Built-in Types
+5 Modules=C_00175
+5 Classes and Class Instances=C_00176
+5 Functions=C_00177
+5 Methods=C_00163
+5 Code Objects=C_00156
+5 Type Objects=C_00109
+5 The Null Object=C_00178
+5 File Objects=C_00155
+5 Internal Objects=C_00179
+4 Special Attributes=C_00180
+3 Built-in Exceptions=C_00122
+3 Built-in Functions=C_00108
+2 Python Services
+3 Built-in Module sys=C_00082
+3 Standard Module types=C_00134
+3 Standard Module types=C_00110
+3 Standard Module traceback=C_00107
+3 Standard Module pickle=C_00072
+3 Standard Module shelve=C_00040
+3 Standard Module copy=C_00036
+3 Built-in Module marshal=C_00071
+3 Built-in Module imp
+4 Examples=C_00181
+3 Built-in Module parser
+4 Exceptions and Error Handling=C_00132
+4 Example=C_00135
+4 AST Objects=C_00138
+3 Built-in Module __builtin__=C_00024
+3 Built-in Module __main__=C_00025
+2 String Services
+3 Standard Module string=C_00099
+3 Built-in Module regex=C_00088
+3 Standard Module regsub=C_00089
+3 Built-in Module struct=C_00030
+2 Miscellaneous Services
+3 Built-in Module math=C_00073
+3 Standard Module rand=C_00086
+3 Standard Module whrandom=C_00113
+3 Built-in Module array=C_00029
+2 Generic Operating System Services
+3 Standard Module os=C_00079
+3 Built-in Module time=C_00106
+3 Standard Module getopt=C_00051
+3 Standard Module tempfile=C_00102
+2 Optional Operating System Services
+3 Built-in Module signal=C_00095
+3 Built-in Module socket
+4 Socket Objects=C_00143
+4 Example=C_00171
+3 Built-in Module select=C_00094
+3 Built-in Module thread=C_00105
+2 UNIX Specific Services
+3 Built-in Module posix=C_00080
+3 Standard Module posixpath=C_00081
+3 Built-in Module pwd=C_00085
+3 Built-in Module grp=C_00054
+3 Built-in Module dbm=C_00038
+3 Built-in Module gdbm=C_00039
+3 Built-in Module termios=C_00104
+3 Built-in Module termios
+4 Example=C_00141
+3 Built-in Module fcntl=C_00043
+3 Standard Module posixfile=C_00084
+3 Built-in Module syslog=C_00101
+2 The Python Debugger
+3 Debugger Commands=C_00182
+3 How It Works=C_00183
+2 The Python Profiler
+3 Introduction to the profiler=C_00184
+3 How Is This Profiler Different From The Old Profiler?=C_00185
+3 Instant Users Manual=C_00186
+3 What Is Deterministic Profiling?=C_00187
+3 Reference Manual
+4 The Stats Class=C_00146
+3 Limitations=C_00188
+3 Calibration=C_00189
+3 Extensions --- Deriving Better Profilers
+4 OldProfile Class=C_00191
+4 HotProfile Class=C_00192
+2 Internet and WWW Services
+3 Standard Module cgi
+4 Example=C_00193
+3 Standard Module urllib=C_00056
+3 Standard Module httplib
+4 HTTP Objects=C_00090
+4 Example=C_00136
+3 Standard Module ftplib
+4 FTP Objects=C_00140
+3 Standard Module gopherlib=C_00053
+3 Standard Module nntplib
+4 NNTP Objects=C_00118
+3 Standard Module urlparse=C_00111
+3 Standard Module htmllib=C_00048
+3 Standard Module sgmllib=C_00055
+3 Standard Module rfc822
+4 Message Objects=C_00129
+3 Standard Module mimetools
+4 Additional Methods of Message objects=C_00142
+3 Standard module binhex
+4 notes=C_00172
+3 Standard module uu=C_00112
+3 Built-in Module binascii=C_00032
+2 Multimedia Services
+3 Built-in Module audioop=C_00031
+3 Built-in Module imageop=C_00058
+3 Standard Module aifc=C_00026
+3 Built-in Module jpeg=C_00061
+3 Built-in Module rgbimg=C_00092
+2 Cryptographic Services
+3 Built-in Module md5=C_00075
+3 Built-in Module mpz=C_00077
+3 Built-in Module rotor=C_00093
+2 Macintosh Specific Services
+3 Built-in Module mac=C_00062
+3 Standard Module macpath=C_00068
+3 Built-in Module ctb
+4 connection object=C_00123
+3 Built-in Module macconsole
+4 macconsole options object=C_00130
+4 console window object=C_00128
+3 Built-in Module macdnr
+4 dnr result object=C_00124
+3 Built-in Module macfs
+4 FSSpec objects=C_00127
+4 alias objects=C_00126
+4 FInfo objects=C_00125
+3 Built-in Module MacOS=C_00066
+3 Standard module macostools=C_00067
+3 Built-in Module mactcp
+4 TCP Stream Objects=C_00119
+4 TCP Status Objects=C_00120
+4 UDP Stream Objects=C_00121
+3 Built-in Module macspeech
+4 voice objects=C_00116
+4 speech channel objects=C_00117
+3 Standard module EasyDialogs=C_00042
+3 Standard module FrameWork
+4 Application objects=C_00158
+4 DialogWindow Objects=C_00159
+2 Standard Windowing Interface
+3 Built-in Module stdwin
+4 Functions Defined in Module stdwin=C_00149
+4 Window Objects=C_00151
+4 Drawing Objects=C_00150
+4 Menu Objects=C_00145
+4 Bitmap Objects=C_00154
+4 Text-edit Objects=C_00148
+4 Example=C_00165
+3 Standard Module stdwinevents=C_00098
+3 Standard Module rect=C_00087
+2 SGI IRIX Specific Services
+3 Built-in Module al
+4 Configuration Objects=C_00160
+4 Port Objects=C_00153
+3 Standard Module AL=C_00028
+3 Built-in Module cd=C_00034
+3 Built-in Module fl
+4 Functions Defined in Module fl=C_00152
+4 Form Objects=C_00144
+4 FORMS Objects=C_00157
+3 Standard Module FL=C_00045
+3 Standard Module flp=C_00046
+3 Built-in Module fm=C_00047
+3 Built-in Module gl=C_00052
+3 Standard Modules GL and DEVICE=C_00041
+3 Built-in Module imgfile=C_00059
+2 SunOS Specific Services
+3 Built-in Module sunaudiodev
+4 Audio Device Objects=C_00139

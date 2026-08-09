@@ -1,0 +1,63 @@
+
+Here's how to try out each of the demos:
+
+These should work the same whether you are using
+Unix or PythonWin.
+==================================================
+asynfing.py:
+>>> import asynfing
+>>> asynfing.demo()
+If you're connected to the Internet, you should see:
+"Hey, you hit my finger demo on squirl!  Congratulations! -Sam"
+
+==================================================
+asynhttp.py:
+>>> import asynhttp
+>>> asynhttp.demo()
+If you're connected to the Internet, you should see
+the html source to www.nightmare.com's home page.
+
+==================================================
+pop3demo.py:
+Only try this one if you can get to mail stored on a pop3 server!
+>>> import pop3demo
+>>> pop3demo.demo ('my_mail_host', 'my_username', 'my_password')
+You should see a dump of your mail messages..
+
+==================================================
+pop3_2.py:
+[same as pop3demo.py]
+>>> import pop3_2
+>>> pop3_2.demo ('my_mail_host', 'my_username', 'my_password')
+You should see a listing of the number and size of the messages
+in your mailbox.
+
+==================================================
+servhttp.py:
+>>> import servhttp
+>>> hs = servhttp.http_server ('/path/to/some/html/files', <port>)
+>>> hs.go()
+Where <port> is a free port on the machine (if it's already running
+a web server, try 8080, otherwise, use 80).
+
+Now connect to your server using a web browser, making sure to use
+the port in the URL if you didn't use 80, like this:
+http://my_machine:8080/some_file.html
+
+==================================================
+servtest.py:
+>>> import servtest
+>>> servtest.demo()
+This should start a new server on port 9999 (assuming it isn't
+already being used by something else).  There are instructions
+in the source for for how to try it out.
+
+==================================================
+asyndns.py:
+This requires the dns library files from the Demo/dns
+directory in the python distribution to be in your
+python path.
+>>> import asyndns
+>>> asyndns.demo()
+
+-Sam

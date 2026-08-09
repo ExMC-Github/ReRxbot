@@ -25,14 +25,14 @@ if not os.path.exists('logs'):
 
 # 初始化AI客户端
 ai_client = OpenAI(
-    api_key=config["ai_key"],
-    base_url=config["ai_base_url"])
+    api_key=config["ai_settings"]["ai_key"],
+    base_url=config["ai_settings"]["ai_base_url"])
 
 # 初始化AI管理器
 ai_manager = AIManager(rules_dir="rules", default_rule="default.txt")
 
 # 加载自动保存的AI记忆
-loaded_count = load_auto_saved_memories(config.get('ai_memory_dir', 'ai_memory'))
+loaded_count = load_auto_saved_memories(config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
 if loaded_count > 0:
     print(f"已自动加载 {loaded_count} 个群的AI记忆")
 
@@ -62,7 +62,7 @@ def on_close(ws, close_status_code, close_msg):
     # 自动保存所有群的AI记忆
     if has_unsaved_memory():
         logger.info("检测到未保存的AI记忆，正在保存...")
-        saved_count = auto_save_all_memories(config.get('ai_memory_dir', 'ai_memory'))
+        saved_count = auto_save_all_memories(config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
         logger.info(f"已自动保存 {saved_count} 个群的AI记忆")
     
     logger.remove()
