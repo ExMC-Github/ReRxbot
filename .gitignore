@@ -9,3 +9,4 @@ app.log
 *.log
 *.txt.zst
 ai-embed-python/
+ai-embed-python-*/
