@@ -1021,7 +1021,7 @@ def process_tool_calls(ws, group_id, message, user_id, ai_client, conversation_h
 
 def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理defined对话的工作线程(使用defined.txt提示词)"""
-    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented
+    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented, send_group_single_forward_msg
     
     user_input = get_message_text(msg)[len("defined "):]
     user_id = msg.get('sender', {}).get('user_id')
@@ -1108,7 +1108,7 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 
 def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理AI对话的工作线程"""
-    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented
+    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented, send_group_single_forward_msg
     import datetime
 
     user_input = get_message_text(msg)[len(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):]
@@ -1196,7 +1196,7 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 
 def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self_id, ai_manager):
     """处理@触发的AI对话的工作线程"""
-    from feature import send_group_msg, send_group_msg_forward_segmented
+    from feature import send_group_msg, send_group_msg_forward_segmented, send_group_single_forward_msg
     import datetime
     
     user_id = original_msg.get('sender', {}).get('user_id')
