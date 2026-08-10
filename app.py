@@ -9,16 +9,16 @@ import websocket
 import varlist as vars
 import json
 import builtins
-import os, sys
+import os, sys, platform
 import tarfile
 import datetime
 from config import config
 from openai import OpenAI
 builtins.config = config
-from functions import qq_group_message, qq_private_message
+from functions import qq_group_message, qq_private_message, botstatus
 from functions.ai_manager import AIManager
 from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, load_auto_saved_memories
-from feature import compress_logs
+from feature import compress_logs, send_group_msg
 print(vars.banner)
 if not os.path.exists('logs'):
     os.makedirs('logs')
@@ -43,6 +43,19 @@ def on_message(ws, message):
     status = msg.get('status')
     echo = msg.get('echo')
     logger.info(f"收到消息: {message}")
+    # 处理 get_version_info 的回声响应，将框架版本数据发回对应群
+    if echo is not None and echo.startswith("get_version_info"):
+        echo_args = echo.split('&')
+        send_group_msg(ws, echo_args[1], str(msg.get('data')))
+    # 处理 #ll / #llbot 的回声响应，组合版本信息与运行时长发回对应群
+    if echo is not None and echo.startswith("llbot_info"):
+        echo_args = echo.split('&')
+        data = msg.get('data') or {}
+        send_group_msg(ws, echo_args[1],
+            f"LLOneBot (LuckyLilliaBot)\n"
+            f"版本：{data.get('app_version')}\n"
+            f"平台：{sys.platform}-{platform.architecture()[0]}\n"
+            f"运行时长：{botstatus.get_uptime_str()}")
     if message_type == "group":
         qq_group_message(ws, message, ai_client, ai_manager)
     elif message_type == "private":

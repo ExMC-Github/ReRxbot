@@ -4,9 +4,12 @@ functions/__pycache__/
 ai_memory/
 logs/
 old_project/
+RxBot/
 .venv/
 app.log
 *.log
 *.txt.zst
 ai-embed-python/
 ai-embed-python-*/
+*.pye
+rotor_key.py

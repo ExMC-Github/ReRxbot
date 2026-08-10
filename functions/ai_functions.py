@@ -388,7 +388,7 @@ def web_fetch_url(tool_args, config):
         return "错误：URL必须以http://或https://开头"
     
     # 自定义User-Agent
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0 ReRxBot/2026.8.9"
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0 ReRxBot/2026.8.10"
     
     headers = {
         "User-Agent": user_agent,
@@ -510,6 +510,271 @@ def web_fetch_url(tool_args, config):
         return f"访问网页时发生未知错误: {str(e)}"
 
 
+# ============ blacklist_files 文件访问保护 ============
+
+# 注入到AI执行代码前的Hook源码（在子进程中自包含运行，不依赖本模块）
+# 占位符 __BLACKLIST__ / __MODULE_BASES__ 在 build_blacklist_hook 中替换为实际的标准化列表
+_BLACKLIST_HOOK_SRC = """\
+# ===== blacklist_files 文件访问保护（由机器人自动注入） =====
+import builtins as _b
+import io as _io
+import os as _os
+import glob as _glob
+
+
+def _install_blx_guard(blacklist, module_bases):
+    def _blx_norm(p):
+        try:
+            p = _os.fsdecode(p)
+        except Exception:
+            p = str(p)
+        return p.replace("\\\\", "/").strip().lower()
+
+    def _blx_hit(path):
+        n = _blx_norm(path)
+        base = n.rsplit("/", 1)[-1]
+        return n in blacklist or base in blacklist
+
+    def _blx_deny(path, op):
+        if _blx_hit(path):
+            raise PermissionError(
+                f"[blacklist_files] 禁止访问黑名单文件 {path!r}（{op}）")
+
+    _orig_open = _b.open
+
+    def _safe_open(file, *args, **kwargs):
+        if isinstance(file, (str, bytes, _os.PathLike)):
+            _blx_deny(file, "open")
+        return _orig_open(file, *args, **kwargs)
+
+    _b.open = _safe_open
+    _io.open = _safe_open
+
+    _orig_open_code = _io.open_code
+
+    def _safe_open_code(path, *args, **kwargs):
+        _blx_deny(path, "open_code")
+        return _orig_open_code(path, *args, **kwargs)
+
+    _io.open_code = _safe_open_code
+
+    _orig_os_open = _os.open
+
+    def _safe_os_open(path, *args, **kwargs):
+        _blx_deny(path, "os.open")
+        return _orig_os_open(path, *args, **kwargs)
+
+    _os.open = _safe_os_open
+
+    _orig_remove = _os.remove
+
+    def _safe_remove(path, *args, **kwargs):
+        _blx_deny(path, "remove")
+        return _orig_remove(path, *args, **kwargs)
+
+    _os.remove = _safe_remove
+
+    _orig_unlink = _os.unlink
+
+    def _safe_unlink(path, *args, **kwargs):
+        _blx_deny(path, "unlink")
+        return _orig_unlink(path, *args, **kwargs)
+
+    _os.unlink = _safe_unlink
+
+    _orig_rename = _os.rename
+
+    def _safe_rename(src, dst, *args, **kwargs):
+        _blx_deny(src, "rename")
+        _blx_deny(dst, "rename")
+        return _orig_rename(src, dst, *args, **kwargs)
+
+    _os.rename = _safe_rename
+
+    _orig_replace = _os.replace
+
+    def _safe_replace(src, dst, *args, **kwargs):
+        _blx_deny(src, "replace")
+        _blx_deny(dst, "replace")
+        return _orig_replace(src, dst, *args, **kwargs)
+
+    _os.replace = _safe_replace
+
+    _orig_stat = _os.stat
+
+    def _safe_stat(path, *args, **kwargs):
+        _blx_deny(path, "stat")
+        return _orig_stat(path, *args, **kwargs)
+
+    _os.stat = _safe_stat
+
+    _orig_lstat = _os.lstat
+
+    def _safe_lstat(path, *args, **kwargs):
+        _blx_deny(path, "lstat")
+        return _orig_lstat(path, *args, **kwargs)
+
+    _os.lstat = _safe_lstat
+
+    # Python 3.13+ 的 os.path 探测/元数据函数走C实现，绕过 os.stat 的hook，
+    # 需要逐一包装：探测类对外表现为"不存在"，元数据类直接拒绝
+    _osp = _os.path
+    for _fname in ("exists", "lexists", "isfile", "isdir", "islink",
+                   "ismount", "isjunction"):
+        _orig_pf = getattr(_osp, _fname, None)
+        if _orig_pf is None:
+            continue
+
+        def _safe_probe(path, *args, _orig_pf=_orig_pf, _fname=_fname, **kwargs):
+            if _blx_hit(path):
+                return False
+            return _orig_pf(path, *args, **kwargs)
+
+        setattr(_osp, _fname, _safe_probe)
+
+    for _fname in ("getsize", "getmtime", "getatime", "getctime", "realpath"):
+        _orig_pf = getattr(_osp, _fname, None)
+        if _orig_pf is None:
+            continue
+
+        def _safe_meta(path, *args, _orig_pf=_orig_pf, _fname=_fname, **kwargs):
+            _blx_deny(path, "os.path." + _fname)
+            return _orig_pf(path, *args, **kwargs)
+
+        setattr(_osp, _fname, _safe_meta)
+
+    _orig_listdir = _os.listdir
+
+    def _safe_listdir(path=".", *args, **kwargs):
+        items = _orig_listdir(path, *args, **kwargs)
+        return [it for it in items
+                if not _blx_hit(it)
+                and not _blx_hit(_os.path.join(path, it))]
+
+    _os.listdir = _safe_listdir
+
+    _orig_scandir = _os.scandir
+
+    class _FilteredScandir:
+        # 同时支持迭代与 with 上下文管理（os.walk/glob 内部使用 with scandir）
+
+        def __init__(self, gen):
+            self._gen = gen
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return next(self._gen)
+
+        def close(self):
+            close_fn = getattr(self._gen, "close", None)
+            if close_fn is not None:
+                close_fn()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            self.close()
+
+    def _safe_scandir(path=".", *args, **kwargs):
+        def _gen():
+            for entry in _orig_scandir(path, *args, **kwargs):
+                if _blx_hit(entry.name) or _blx_hit(
+                        _os.path.join(path, entry.name)):
+                    continue
+                yield entry
+
+        return _FilteredScandir(_gen())
+
+    _os.scandir = _safe_scandir
+
+    _orig_glob = _glob.glob
+
+    def _safe_glob(pathname, *args, **kwargs):
+        return [p for p in _orig_glob(pathname, *args, **kwargs)
+                if not _blx_hit(p)]
+
+    _glob.glob = _safe_glob
+
+    _orig_iglob = _glob.iglob
+
+    def _safe_iglob(pathname, *args, **kwargs):
+        for p in _orig_iglob(pathname, *args, **kwargs):
+            if not _blx_hit(p):
+                yield p
+
+    _glob.iglob = _safe_iglob
+
+    _orig_import = _b.__import__
+
+    def _safe_import(name, *args, **kwargs):
+        if name.split(".")[0].lower() in module_bases:
+            raise PermissionError(
+                f"[blacklist_files] 禁止导入黑名单模块 {name!r}")
+        return _orig_import(name, *args, **kwargs)
+
+    _b.__import__ = _safe_import
+
+
+_install_blx_guard(__BLACKLIST__, __MODULE_BASES__)
+del _install_blx_guard
+"""
+
+
+def _get_blacklist_norm(config):
+    """读取配置中的 blacklist_files 并标准化（小写、正斜杠、去空白）"""
+    blacklist = config["ai_settings"].get('blacklist_files', []) or []
+    blacklist_norm = set()
+    for entry in blacklist:
+        entry = str(entry).replace("\\", "/").strip().lower()
+        if entry:
+            blacklist_norm.add(entry)
+    return blacklist_norm
+
+
+def _is_blacklisted(path, blacklist_norm):
+    """判断路径是否命中黑名单（按完整路径或文件名匹配，大小写不敏感）
+
+    Args:
+        path: 文件路径或文件名
+        blacklist_norm: _get_blacklist_norm 返回的标准化黑名单集合
+    """
+    norm = str(path).replace("\\", "/").strip().lower()
+    base = norm.rsplit("/", 1)[-1]
+    return norm in blacklist_norm or base in blacklist_norm
+
+
+def build_blacklist_hook(blacklist):
+    """构造注入到AI代码执行前的文件访问保护Hook源码
+
+    Args:
+        blacklist: blacklist_files 配置项（文件名字符串列表）
+
+    Returns:
+        Hook源码字符串；未配置黑名单时返回空字符串
+    """
+    blacklist_norm = set()
+    module_bases = set()
+    for entry in blacklist or []:
+        entry = str(entry).replace("\\", "/").strip().lower()
+        if not entry:
+            continue
+        blacklist_norm.add(entry)
+        base = entry.rsplit("/", 1)[-1]
+        if "." in base:
+            base = base.rsplit(".", 1)[0]
+        module_bases.add(base)
+    if not blacklist_norm:
+        return ""
+    return _BLACKLIST_HOOK_SRC.replace(
+        "__BLACKLIST__", repr(sorted(blacklist_norm))
+    ).replace(
+        "__MODULE_BASES__", repr(sorted(module_bases))
+    )
+
+
 def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
     """执行工具调用"""
     from feature import set_group_ban
@@ -556,8 +821,12 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
             
             try:
                 items = os.listdir(path)
+                blacklist_norm = _get_blacklist_norm(builtins.config)
                 result_lines = [f"目录 {path} 的内容:"]
                 for item in items:
+                    # 过滤 blacklist_files 黑名单文件，不让AI发现它们
+                    if blacklist_norm and _is_blacklisted(item, blacklist_norm):
+                        continue
                     item_path = os.path.join(path, item)
                     if os.path.isdir(item_path):
                         result_lines.append(f"📁 {item}/")
@@ -578,6 +847,19 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
             code = tool_args.get("code", "")
             if not code:
                 return "代码内容为空，未执行"
+
+            # 纵深防御：代码文本中引用 blacklist_files 黑名单文件名时直接拒绝
+            blacklist_norm = _get_blacklist_norm(builtins.config)
+            if blacklist_norm:
+                code_lower = code.lower()
+                hit_entries = sorted(
+                    e for e in blacklist_norm
+                    if e in code_lower or e.rsplit("/", 1)[-1] in code_lower)
+                if hit_entries:
+                    logger.warning(
+                        f"执行工具 execute_code 失败: 代码引用了blacklist_files黑名单文件 {hit_entries}")
+                    return (f"Permission Denied: 代码引用了blacklist_files黑名单文件"
+                            f"（{', '.join(hit_entries)}），已拒绝执行")
             
             approved, final_code, timed_out, extra_content = review_and_execute_code(code)
             
@@ -671,9 +953,14 @@ def execute_python_code(code):
 
         logger.info(f"使用Python解释器: {python_exec}")
 
+        # 注入 blacklist_files 文件访问保护Hook（在子进程中拦截文件API）
+        blacklist = builtins.config["ai_settings"].get('blacklist_files', []) or []
+        hook = build_blacklist_hook(blacklist)
+        final_code = (hook + "\n\n" + code) if hook else code
+
         # 使用子进程执行代码
         proc = subprocess.run(
-            [python_exec, '-c', code],
+            [python_exec, '-c', final_code],
             capture_output=True,
             text=True,
             timeout=60  # 60秒超时
@@ -734,7 +1021,7 @@ def process_tool_calls(ws, group_id, message, user_id, ai_client, conversation_h
 
 def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理defined对话的工作线程(使用defined.txt提示词)"""
-    from feature import get_message_text, send_group_msg, send_group_single_forward_msg
+    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented
     
     user_input = get_message_text(msg)[len("defined "):]
     user_id = msg.get('sender', {}).get('user_id')
@@ -801,8 +1088,8 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         # 发送回复
         if assistant_reply:
             if len(assistant_reply) > 299:
-                # 合并转发消息,不添加回复和@
-                send_group_single_forward_msg(ws, group_id, self_id, "杨诺轩", assistant_reply)
+                # 长消息自动分段后以合并转发发送,不添加回复和@
+                send_group_msg_forward_segmented(ws, group_id, assistant_reply, self_id, "杨诺轩")
             else:
                 # 普通消息,添加回复和@,关闭auto_escape
                 reply_message = f"[CQ:reply,id={message_id}][CQ:at,qq={user_id}] {assistant_reply}"
@@ -821,10 +1108,10 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 
 def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理AI对话的工作线程"""
-    from feature import get_message_text, send_group_msg, send_group_single_forward_msg
+    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented
     import datetime
 
-    user_input = get_message_text(msg)[len(f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']} "):]
+    user_input = get_message_text(msg)[len(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):]
     user_id = msg.get('sender', {}).get('user_id')
     nickname = msg.get('sender', {}).get('nickname')
     
@@ -889,8 +1176,10 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         # 发送回复
         if assistant_reply:
             if len(assistant_reply) > 299:
-                send_group_single_forward_msg(ws, group_id, self_id, config["ai_settings"]['ai_name'], 
-                                              assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
+                # 长消息自动分段后以合并转发发送
+                send_group_msg_forward_segmented(ws, group_id,
+                                                 assistant_reply + "\n\n（以上内容由AI生成，仅供参考）",
+                                                 self_id, config["ai_settings"]['ai_name'])
             else:
                 send_group_msg(ws, group_id, assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
     
@@ -907,7 +1196,7 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 
 def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self_id, ai_manager):
     """处理@触发的AI对话的工作线程"""
-    from feature import send_group_msg, send_group_single_forward_msg
+    from feature import send_group_msg, send_group_msg_forward_segmented
     import datetime
     
     user_id = original_msg.get('sender', {}).get('user_id')
@@ -966,8 +1255,10 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
         
         if assistant_reply:
             if len(assistant_reply) > 299:
-                send_group_single_forward_msg(ws, group_id, self_id, config["ai_settings"]['ai_name'],
-                                              assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
+                # 长消息自动分段后以合并转发发送
+                send_group_msg_forward_segmented(ws, group_id,
+                                                 assistant_reply + "\n\n（以上内容由AI生成，仅供参考）",
+                                                 self_id, config["ai_settings"]['ai_name'])
             else:
                 send_group_msg(ws, group_id, assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
     
@@ -1009,7 +1300,7 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             thread.start()
     
     # 处理原有的ex.dpsk命令
-    elif raw_message.startswith(f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']} "):
+    elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):
         if group_id in ai_threads and ai_threads[group_id].is_alive():
             send_group_msg(ws, group_id, f"本群已有 {config['ai_settings']['ai_name']} 对话正在进行，请等待完成后再试", True)
         else:
@@ -1021,7 +1312,7 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             ai_threads[group_id] = thread
             thread.start()
     
-    elif raw_message == f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.reset":
+    elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.reset":
         if group_id in ai_conversation_history:
             system_prompt = ai_manager.get_rule()
             ai_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
@@ -1041,7 +1332,7 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
                 at_ai_threads[group_id] = thread
                 thread.start()
     
-    elif raw_message == f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.at.reset":
+    elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.at.reset":
         if group_id in at_ai_conversation_history:
             system_prompt = ai_manager.get_rule()
             at_ai_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
@@ -1049,7 +1340,7 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
         else:
             send_group_msg(ws, group_id, f"当前群没有活跃的 {config['ai_settings']['ai_name']} At 对话历史，无需重置。", True)
     
-    elif raw_message == f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.defined.reset":
+    elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.defined.reset":
         if group_id in defined_conversation_history:
             # 使用配置中defined对应的规则文件
             rules_defined = config["ai_settings"].get('rules_defined', {})
@@ -1060,9 +1351,9 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
         else:
             send_group_msg(ws, group_id, f"当前群没有活跃的 defined 对话历史，无需重置。", True)
     
-    elif raw_message.startswith(f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.save "):
+    elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.save "):
         # 保存AI记忆 ex.dpsk.save 记忆名称
-        memory_name = raw_message[len(f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.save "):].strip()
+        memory_name = raw_message[len(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.save "):].strip()
         if memory_name:
             success, result = save_group_memory(group_id, memory_name, config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
             if success:
@@ -1070,11 +1361,11 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             else:
                 send_group_msg(ws, group_id, f"保存 {config['ai_settings']['ai_name']} 对话记忆失败: {result}", True)
         else:
-            send_group_msg(ws, group_id, f"请指定记忆名称，例如: {config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.save my_memory", True)
+            send_group_msg(ws, group_id, f"请指定记忆名称，例如: {config['command_prefix']}{config['ai_settings']['ai_shortname']}.save my_memory", True)
     
-    elif raw_message.startswith(f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.load "):
+    elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.load "):
         # 加载AI记忆 ex.dpsk.load 记忆名称
-        memory_name = raw_message[len(f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.load "):].strip()
+        memory_name = raw_message[len(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.load "):].strip()
         if memory_name:
             success, result = load_group_memory(group_id, memory_name, config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
             if success:
@@ -1082,9 +1373,9 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             else:
                 send_group_msg(ws, group_id, f"加载 {config['ai_settings']['ai_name']} 对话记忆失败: {result}", True)
         else:
-            send_group_msg(ws, group_id, f"请指定记忆名称，例如: {config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.load my_memory", True)
+            send_group_msg(ws, group_id, f"请指定记忆名称，例如: {config['command_prefix']}{config['ai_settings']['ai_shortname']}.load my_memory", True)
     
-    elif raw_message == f"{config['ai_settings']['command_prefix']}{config['ai_settings']['ai_shortname']}.list":
+    elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.list":
         # 列出当前群的记忆列表
         memories = list_group_memories(group_id, config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
         if memories:

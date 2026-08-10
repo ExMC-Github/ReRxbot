@@ -1,6 +1,6 @@
 from loguru import logger
 import json, io, dis, sys, traceback
-from feature import send_group_msg, exec_and_capture, set_group_special_title, set_group_ban
+from feature import send_group_msg, exec_and_capture, set_group_special_title, set_group_ban, get_version_info, get_llbot_info
 import builtins, random
 
 def qq_group_message(ws, message, ai_client=None, ai_manager=None):
@@ -40,6 +40,14 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
 
     if raw_message == "test":
         send_group_msg(ws,group_id,"状态正常")
+
+    # 处理 get_version_info（查询框架版本）
+    if raw_message == "get_version_info" or raw_message == f"{builtins.config['command_prefix']}get_version_info":
+        get_version_info(ws,group_id)
+
+    # 处理 #ll / #llbot（查询 LLOneBot 状态）
+    if raw_message == "#ll" or raw_message == "#llbot":
+        get_llbot_info(ws,group_id)
         
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
