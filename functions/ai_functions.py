@@ -1282,6 +1282,12 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     user_id = msg.get('sender', {}).get('user_id')
     
+    # bot_disable_settings: ai_enabled = False 时禁用AI，不回复（什么也不做，也不发消息）
+    group_settings = config.get("bot_disable_settings", {}).get("group_settings", {}).get(str(group_id), {})
+    if not group_settings.get("ai_enabled", True):
+        logger.info(f"群 {group_id} 已禁用AI，忽略AI相关命令")
+        return
+    
     # 检查该用户是否被AI忽略（非机器人群中mute等效为忽略，AI不再接收其消息）
     # 机器人管理员不受忽略限制
     if user_id and user_id in ignored_users.get(group_id, set()) and user_id not in config.get('bot_admin_ids', []):

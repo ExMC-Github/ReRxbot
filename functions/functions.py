@@ -22,6 +22,12 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     raw_message = msg.get('raw_message')
     message_segments = msg.get("message", [])
 
+    # bot_disable_settings: 群设置（is_only_admin_can_use = True 时仅管理员可用，非管理员不回复也不发消息）
+    group_settings = builtins.config.get("bot_disable_settings", {}).get("group_settings", {}).get(str(group_id), {})
+    if group_settings.get("is_only_admin_can_use", False) and user_id not in builtins.config["bot_admin_ids"]:
+        logger.info(f"群 {group_id} 设置了仅管理员可用，非管理员 {user_id} 的消息被忽略")
+        return
+
     if self_id not in builtins.config["bot_admin_ids"]:
         builtins.config["bot_admin_ids"].append(self_id)
     after_at_text = []

@@ -11,6 +11,14 @@ config = {
     "bot_admin_ids": [3657936745,2545869165,2535246057,1610915093,2975227763],
     "bot_group": 1081097838,
     "command_prefix": "ex.",
+    "bot_disable_settings":{
+        "group_settings":{
+            "771866544": {
+                "is_only_admin_can_use": True,
+                "ai_enabled": False
+            }
+        }
+    },
     "ai_settings": {
         "ai_base_url": "https://api.deepseek.com",
         "ai_key": aikey,
