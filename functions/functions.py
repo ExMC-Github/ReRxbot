@@ -1,3 +1,4 @@
+# 这是ExRFy写的，部分是AI写的
 from loguru import logger
 import json, io, dis, sys, traceback
 from feature import send_group_msg, exec_and_capture, set_group_special_title, set_group_ban, get_version_info, get_llbot_info
@@ -69,6 +70,16 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
 
         if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019 and raw_message.startswith("那我呢"):
             set_group_ban(ws,group_id,user_id,random.randint(180,300))
+
+        if user_id != self_id:
+            try:
+                a = int(raw_message)
+                if not raw_message.startswith("-"):
+                    send_group_msg(ws,group_id,str(a+1))
+                else:
+                    send_group_msg(ws,group_id,str(a-1))
+            except:
+                pass
     
     # 处理AI相关命令
     if ai_client and ai_manager:

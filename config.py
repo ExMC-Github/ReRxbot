@@ -2,9 +2,10 @@ from encryption import rotor
 import pyconcrete
 from rotor_key import key
 rot_temp = rotor.newrotor(key)
-aikey = rot_temp.decrypt(b'\xd2D\x89}!r\x0f\x9d\xc8\xac\x9a\xdf,QNEs\xb8\\\xec\xf0\xe0\xa5r\xe1\xf2\xd0\xa4\xb7$\x14zE\xccP').decode('utf-8')
-vit_ai_key = rot_temp.decrypt(b"\xd2D\x89\xa5\x7f\x17\xcc\xe4b\x91\xba\x93\xc6\xc3\x86\xd8\x80!\x0b\xdd\r\xce\x1d{c\xac*'\xe6\x1e\x14\xf5\xe3N=\xb6\xf7\xed\x89\xd8\r?\xb7\xe5\xb4\x9a] \xd6%\xd1").decode('utf-8')
-boto3_secret_key = rot_temp.decrypt(b'PI B\x87\x80\xda\xc8\xa4\x87\xf85s\x9eau#\x16\x8ct\xcb/A\xceI\x9fo\xf0S\xb5').decode('utf-8')
+aikey = rot_temp.decrypt(b'\xd2D\x89\x13\x0f\x80z\x04\x08\xb7\x9aN\x10\xe4\x86E\xbc\x8b1\x05\x01\xe0\x15\xa3#\xc2e\xe9sa\x14z\xa239').decode('utf-8')
+vit_ai_key = rot_temp.decrypt(b'\xd2D\x89\x8c\x96\xd1\xda\x9d9\x0c\xdb\x8b|7s?\xaaR\xcc\xe5!\x9dADX\xad\xb0\x16s*\xa3\xffI(=V\x84\x7f{\x0er\xdc:\xea\x88\x19]\xc6\xa4\x97=').decode('utf-8')
+boto3_secret_key = rot_temp.decrypt(b"\xe2\xc8 \xc2Y/>\x9f'\xe2C\xb2\x8c\x9a\xe0C\xa3!q\xa1\x0b\x0e\xebnW\xbd\x8c+>\x7f").decode('utf-8')
+boto3_access_key = rot_temp.decrypt(b'\x1203&y\x1b\xe82F$bu\xec\x16P\xd4').decode('utf-8')
 del rot_temp, key
 config = {
     "bot_admin_ids": [3657936745,2545869165,2535246057,1610915093,2975227763],
@@ -23,7 +24,7 @@ config = {
         "ai_memory_boto3_backup": True,
         "ai_memory_boto3_config": {
             "api": "https://cn-sy1.rains3.com",
-            "access_key": "e8WlL0NMElbA5rN9",
+            "access_key": boto3_access_key,
             "secret_key": boto3_secret_key,
             "bucket_name": "rerxbot-memory"
         },

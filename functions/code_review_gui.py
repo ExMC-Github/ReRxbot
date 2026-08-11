@@ -1,7 +1,4 @@
-# +================================+
-# |  Code Review GUI (subprocess)  |
-# |         By ExRFy               |
-# +================================+
+# 这是Ai写的，不关ExRFy的事情
 """AI代码审核GUI - 独立子进程运行，避免Tcl_AsyncDelete线程错误
 
 通信协议:
@@ -52,7 +49,7 @@ def main():
 
     # 标题
     ttk.Label(root, text="AI 请求执行以下 Python 代码，请审核：",
-              font=("微软雅黑", 10, "bold")).pack(pady=(10, 5))
+              font=("宋体", 10, "bold")).pack(pady=(10, 5))
 
     # 代码文本区
     text_frame = ttk.Frame(root)
@@ -76,7 +73,7 @@ def main():
 
     # 计时器
     timer_label = ttk.Label(root, text=f"剩余审核时间: {remaining[0]} 秒",
-                            foreground="red", font=("微软雅黑", 9))
+                            foreground="red", font=("宋体", 9))
     timer_label.pack(pady=(4, 2))
 
     # 按钮区

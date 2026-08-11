@@ -1,7 +1,4 @@
-# +===============================+
-# |        A I  M a n a g e r     |
-# |          By ExRFy             |
-# +===============================+
+# 不是我（ExRFy）写的，我看这代码像GLM-5.2帮我写的
 import os
 from loguru import logger
 from typing import Dict, Optional
