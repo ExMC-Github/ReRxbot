@@ -1,7 +1,11 @@
 # 这是ExRFy写的，部分是AI写的
 from loguru import logger
 import json, io, dis, sys, traceback
-from feature import send_group_msg, exec_and_capture, set_group_special_title, set_group_ban, get_version_info, get_llbot_info
+from feature.messages.send import send_group_msg
+from feature.utils.exec_and_capture import exec_and_capture
+from feature.group_manage.special_title import set_group_special_title
+from feature.group_manage.ban import set_group_ban
+from feature.group_manage.status import get_version_info, get_llbot_info
 import builtins, random
 
 def qq_group_message(ws, message, ai_client=None, ai_manager=None):

@@ -774,7 +774,7 @@ def build_blacklist_hook(blacklist):
 
 def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
     """执行工具调用"""
-    from feature import set_group_ban
+    from feature.group_manage.ban import set_group_ban
     import builtins
     
     try:
@@ -986,7 +986,7 @@ def execute_python_code(code):
 
 def process_tool_calls(ws, group_id, message, user_id, ai_client, conversation_history):
     """处理AI的工具调用"""
-    from feature import send_group_msg
+    from feature.messages.send import send_group_msg
     
     # 检查是否有工具调用
     if hasattr(message, 'tool_calls') and message.tool_calls:
@@ -1018,7 +1018,9 @@ def process_tool_calls(ws, group_id, message, user_id, ai_client, conversation_h
 
 def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理defined对话的工作线程(使用defined.txt提示词)"""
-    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented, send_group_single_forward_msg
+    from feature.messages.manage import get_message_text
+    from feature.messages.send import send_group_msg
+    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg
     
     user_input = get_message_text(msg)[len("defined "):]
     user_id = msg.get('sender', {}).get('user_id')
@@ -1105,7 +1107,9 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 
 def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理AI对话的工作线程"""
-    from feature import get_message_text, send_group_msg, send_group_msg_forward_segmented, send_group_single_forward_msg
+    from feature.messages.manage import get_message_text
+    from feature.messages.send import send_group_msg
+    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg
     import datetime
 
     user_input = get_message_text(msg)[len(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):]
@@ -1193,7 +1197,8 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 
 def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self_id, ai_manager):
     """处理@触发的AI对话的工作线程"""
-    from feature import send_group_msg, send_group_msg_forward_segmented, send_group_single_forward_msg
+    from feature.messages.send import send_group_msg
+    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg
     import datetime
     
     user_id = original_msg.get('sender', {}).get('user_id')
@@ -1273,7 +1278,7 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
 def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_id, 
                        is_at_me, at_full_text, ai_manager):
     """处理AI相关的命令"""
-    from feature import send_group_msg
+    from feature.messages.send import send_group_msg
     
     user_id = msg.get('sender', {}).get('user_id')
     

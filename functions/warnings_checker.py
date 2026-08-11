@@ -2,7 +2,7 @@ import os, varlist
 import builtins, datetime, sys
 from loguru import logger
 config = builtins.config
-from feature import send_group_msg
+from feature.messages.send import send_group_msg
 from .warnings_levels import NotFoundExRFyError, NotFoundBuiltTargetError
 
 def embed_check():

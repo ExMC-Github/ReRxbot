@@ -8,7 +8,8 @@ builtins.config = config
 from functions import qq_group_message, qq_private_message, botstatus, warnings_checker
 from functions.ai_manager import AIManager
 from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, load_auto_saved_memories
-from feature import compress_logs, send_group_msg
+from feature.messages.send import send_group_msg
+from feature.utils.compress_logs import compress_logs
 print(vars.banner)
 if not os.path.exists('logs'):
     os.makedirs('logs')
