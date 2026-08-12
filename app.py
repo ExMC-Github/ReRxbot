@@ -5,7 +5,7 @@ import varlist as vars
 from config import config
 from openai import OpenAI
 builtins.config = config
-from functions import qq_group_message, qq_private_message, botstatus, warnings_checker
+from functions import qq_group_message, qq_private_message, qq_notice_message, botstatus, warnings_checker
 from functions.ai_manager import AIManager
 from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, load_auto_saved_memories
 from feature.messages.send import send_group_msg
@@ -25,6 +25,7 @@ if loaded_count > 0:
 def on_message(ws, message):
     """接收消息时的回调"""
     msg = json.loads(message)
+    post_type = msg.get('post_type')
     message_type = msg.get('message_type')
     status = msg.get('status')
     echo = msg.get('echo')
@@ -52,7 +53,9 @@ def on_message(ws, message):
             else:
                 send_group_msg(ws,echo_args[1],"调试端画面截图已完成")
     
-    if message_type == "group":
+    if post_type == "notice":
+        qq_notice_message(ws, message)
+    elif message_type == "group":
         qq_group_message(ws, message, ai_client, ai_manager)
     elif message_type == "private":
         qq_private_message(ws,message)

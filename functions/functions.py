@@ -74,12 +74,6 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
             else:
                 send_group_msg(ws,group_id,"权限不足，只有Bot管理员可以使用此命令")
 
-    if sub_type is not None:
-            if sub_type == "poke":
-                if msg.get('target_id') == self_id:
-                    send_group_msg(ws,group_id,builtins.config["pokeme_msg"])
-            return
-    
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
             raw_title = raw_message[5:]
@@ -122,3 +116,14 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
 
 def qq_private_message(ws,message):
     pass
+
+
+def qq_notice_message(ws, message):
+    """处理通知类事件（如：群内戳一戳）"""
+    msg = json.loads(message)
+    if msg.get('notice_type') == 'notify' and msg.get('sub_type') == 'poke':
+        # 只处理戳到 bot 自己的情况，避免误回复
+        if msg.get('target_id') == msg.get('self_id'):
+            group_id = msg.get('group_id')
+            if group_id:
+                send_group_msg(ws, group_id, builtins.config["pokeme_msg"])
