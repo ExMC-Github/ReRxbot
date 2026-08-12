@@ -140,3 +140,82 @@ def send_group_msg_forward_segmented(ws, group_id, text, uin, name, max_len=299)
             }
         })
     send_group_forward_msg(ws, group_id, nodes)
+
+def paginate_text(text, newline_threshold=5, char_threshold=500):
+    """按 multi_textbox 配置将文本分页（用于合并转发的节点切分）
+
+    触发条件：换行数 >= newline_threshold 或 字符数 >= char_threshold。
+    分页规则：优先按换行切分，每页最多包含 newline_threshold 个换行，
+    且每页字符数不超过 char_threshold；单段超长或无换行时按字符硬切。
+    不满足触发条件时返回 [text]（单页）。
+
+    Args:
+        text: 待分页文本
+        newline_threshold: 分页的换行数阈值（每页最多包含的换行数）
+        char_threshold: 分页的字符数阈值（每页最大字符数，AI不换行时的兜底）
+    Returns:
+        分页后的字符串列表
+    """
+    if not text:
+        return []
+    char_threshold = max(char_threshold, 1)
+    if text.count('\n') < newline_threshold and len(text) < char_threshold:
+        return [text]
+
+    pages = []
+    cur = ''
+    cur_newlines = 0
+    lines = text.split('\n')
+    for i, line in enumerate(lines):
+        seg = line if i == len(lines) - 1 else line + '\n'
+        # 单段超长：先封当前页，再按字符硬切成多页
+        if len(seg) > char_threshold:
+            if cur:
+                pages.append(cur)
+                cur = ''
+                cur_newlines = 0
+            for j in range(0, len(seg), char_threshold):
+                pages.append(seg[j:j + char_threshold])
+            continue
+        # 当前页已满：换页
+        if cur_newlines >= newline_threshold or len(cur) + len(seg) > char_threshold:
+            if cur:
+                pages.append(cur)
+            cur = ''
+            cur_newlines = 0
+        cur += seg
+        cur_newlines += 1
+    if cur:
+        pages.append(cur)
+    return pages
+
+def send_group_msg_forward_paginated(ws, group_id, text, uin, name, newline_threshold=5, char_threshold=500):
+    """按 multi_textbox 配置分页后以合并转发发送
+
+    将文本按换行数/字符数分页，每页作为一条合并转发节点。
+    文本无需分页时退化为单条合并转发。
+
+    Args:
+        ws: websocket连接对象
+        group_id: 目标群号
+        text: 待发送的长文本
+        uin: 转发节点显示的QQ号
+        name: 转发节点显示的名字
+        newline_threshold: 分页的换行数阈值
+        char_threshold: 分页的字符数阈值
+    """
+    pages = paginate_text(text, newline_threshold=newline_threshold, char_threshold=char_threshold)
+    if len(pages) <= 1:
+        send_group_single_forward_msg(ws, group_id, uin, name, text)
+        return
+    nodes = []
+    for page in pages:
+        nodes.append({
+            "type": "node",
+            "data": {
+                "uin": uin,
+                "name": name,
+                "content": [{"type": "text", "data": {"text": page}}]
+            }
+        })
+    send_group_forward_msg(ws, group_id, nodes)
