@@ -1,0 +1,12 @@
+loguru
+beautifulsoup4
+MIT License
+
+websocket-client
+openai
+requests
+boto3
+Apache-2.0 license
+
+zstandard
+BSD-3-Clause license
