@@ -1136,7 +1136,7 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理defined对话的工作线程(使用defined.txt提示词)"""
     from feature.messages.manage import get_message_text
     from feature.messages.send import send_group_msg
-    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg, send_group_msg_forward_paginated
+    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg, send_group_msg_ai_segmented, clean_ai_segment_markers
     
     user_input = get_message_text(msg)[len("defined "):]
     user_id = msg.get('sender', {}).get('user_id')
@@ -1201,20 +1201,13 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         # 获取最终回复
         assistant_reply = assistant_message.content or ""
         
-        # 将助手的回复添加到历史
+        # 将助手的回复添加到历史（去除AI分段标记）
         if assistant_message.content:
-            defined_conversation_history[group_id].append({"role": "assistant", "content": assistant_reply})
+            defined_conversation_history[group_id].append({"role": "assistant", "content": clean_ai_segment_markers(assistant_reply)})
         
-        # 发送回复
+        # 发送回复：由AI自己决定分段，分段时以合并转发发送,不添加回复和@
         if assistant_reply:
-            multi_textbox = config["ai_settings"].get('multi_textbox', {})
-            newline_threshold = multi_textbox.get('newline_threshold', 5)
-            char_threshold = multi_textbox.get('char_threshold', 500)
-            if assistant_reply.count('\n') >= newline_threshold or len(assistant_reply) >= char_threshold:
-                # 触发分页：按multi_textbox配置分页后以合并转发发送,不添加回复和@
-                send_group_msg_forward_paginated(ws, group_id, assistant_reply, self_id, "杨诺轩",
-                                                 newline_threshold=newline_threshold, char_threshold=char_threshold)
-            else:
+            if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id, "杨诺轩"):
                 # 普通消息,添加回复和@,关闭auto_escape
                 reply_message = f"[CQ:reply,id={message_id}][CQ:at,qq={user_id}] {assistant_reply}"
                 send_group_msg(ws, group_id, reply_message, auto_escape=False)
@@ -1234,7 +1227,7 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     """处理AI对话的工作线程"""
     from feature.messages.manage import get_message_text
     from feature.messages.send import send_group_msg
-    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg, send_group_msg_forward_paginated
+    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg, send_group_msg_ai_segmented, clean_ai_segment_markers
     import datetime
 
     user_input = get_message_text(msg)[len(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):]
@@ -1300,22 +1293,15 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         # 获取最终回复
         assistant_reply = assistant_message.content or ""
         
-        # 将助手的回复添加到历史
+        # 将助手的回复添加到历史（去除AI分段标记）
         if assistant_message.content:
-            ai_conversation_history[group_id].append({"role": "assistant", "content": assistant_reply})
+            ai_conversation_history[group_id].append({"role": "assistant", "content": clean_ai_segment_markers(assistant_reply)})
         
-        # 发送回复
+        # 发送回复：由AI自己决定分段，分段时以合并转发发送
         if assistant_reply:
-            multi_textbox = config["ai_settings"].get('multi_textbox', {})
-            newline_threshold = multi_textbox.get('newline_threshold', 5)
-            char_threshold = multi_textbox.get('char_threshold', 500)
-            if assistant_reply.count('\n') >= newline_threshold or len(assistant_reply) >= char_threshold:
-                # 触发分页：按multi_textbox配置分页后以合并转发发送
-                send_group_msg_forward_paginated(ws, group_id,
-                                                 assistant_reply + "\n\n（以上内容由AI生成，仅供参考）",
-                                                 self_id, config["ai_settings"]['ai_name'],
-                                                 newline_threshold=newline_threshold, char_threshold=char_threshold)
-            else:
+            if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id,
+                                               config["ai_settings"]['ai_name'],
+                                               footer="\n\n（以上内容由AI生成，仅供参考）"):
                 send_group_msg(ws, group_id, assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
     
     except Exception as e:
@@ -1332,7 +1318,7 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
 def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self_id, ai_manager):
     """处理@触发的AI对话的工作线程"""
     from feature.messages.send import send_group_msg
-    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg, send_group_msg_forward_paginated
+    from feature.messages.forward import send_group_msg_forward_segmented, send_group_single_forward_msg, send_group_msg_ai_segmented, clean_ai_segment_markers
     import datetime
     
     user_id = original_msg.get('sender', {}).get('user_id')
@@ -1392,19 +1378,13 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
         assistant_reply = assistant_message.content or ""
         
         if assistant_message.content:
-            at_ai_conversation_history[group_id].append({"role": "assistant", "content": assistant_reply})
+            at_ai_conversation_history[group_id].append({"role": "assistant", "content": clean_ai_segment_markers(assistant_reply)})
         
+        # 发送回复：由AI自己决定分段，分段时以合并转发发送
         if assistant_reply:
-            multi_textbox = config["ai_settings"].get('multi_textbox', {})
-            newline_threshold = multi_textbox.get('newline_threshold', 5)
-            char_threshold = multi_textbox.get('char_threshold', 500)
-            if assistant_reply.count('\n') >= newline_threshold or len(assistant_reply) >= char_threshold:
-                # 触发分页：按multi_textbox配置分页后以合并转发发送
-                send_group_msg_forward_paginated(ws, group_id,
-                                                 assistant_reply + "\n\n（以上内容由AI生成，仅供参考）",
-                                                 self_id, config["ai_settings"]['ai_name'],
-                                                 newline_threshold=newline_threshold, char_threshold=char_threshold)
-            else:
+            if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id,
+                                               config["ai_settings"]['ai_name'],
+                                               footer="\n\n（以上内容由AI生成，仅供参考）"):
                 send_group_msg(ws, group_id, assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
     
     except Exception as e:

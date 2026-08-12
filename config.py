@@ -29,10 +29,6 @@ config = {
         "ai_timeout_retry": 2,
         "at_ai_enable": True,
         "ai_owner_group_future_mode": True,
-        "multi_textbox": {
-            "newline_threshold": 5,
-            "char_threshold": 100
-        },
         "ai_memory_dir": "ai_memory",
         "ai_memory_boto3_backup": True,
         "ai_memory_boto3_config": {

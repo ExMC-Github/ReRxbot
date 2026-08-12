@@ -1,6 +1,9 @@
 # 合并转发消息：单条/多条/长文本自动分段转发
 import json
 
+# AI 自主分段标记：AI 在回复中单独一行输出该标记，程序据此将回复切成多条消息发送
+AI_SEGMENT_MARKER = '<<<SEP>>>'
+
 
 def send_group_single_forward_msg(ws,group_id,uin,name,text):
     """发送群合并转发消息（单条）"""
@@ -141,81 +144,83 @@ def send_group_msg_forward_segmented(ws, group_id, text, uin, name, max_len=299)
         })
     send_group_forward_msg(ws, group_id, nodes)
 
-def paginate_text(text, newline_threshold=5, char_threshold=500):
-    """按 multi_textbox 配置将文本分页（用于合并转发的节点切分）
+def split_text_by_ai_marker(text, marker=AI_SEGMENT_MARKER):
+    """按AI输出的分段标记切分文本
 
-    触发条件：换行数 >= newline_threshold 或 字符数 >= char_threshold。
-    分页规则：优先按换行切分，每页最多包含 newline_threshold 个换行，
-    且每页字符数不超过 char_threshold；单段超长或无换行时按字符硬切。
-    不满足触发条件时返回 [text]（单页）。
+    优先按分段标记切分；文本中没有标记时原样返回单段。
 
     Args:
-        text: 待分页文本
-        newline_threshold: 分页的换行数阈值（每页最多包含的换行数）
-        char_threshold: 分页的字符数阈值（每页最大字符数，AI不换行时的兜底）
+        text: AI回复文本
+        marker: 分段标记
     Returns:
-        分页后的字符串列表
+        切分后的字符串列表（已去除每段首尾空白）
     """
     if not text:
         return []
-    char_threshold = max(char_threshold, 1)
-    if text.count('\n') < newline_threshold and len(text) < char_threshold:
-        return [text]
+    if marker not in text:
+        return [text.strip()] if text.strip() else []
+    parts = []
+    for part in text.split(marker):
+        part = part.strip().strip('\n')
+        if part:
+            parts.append(part)
+    return parts
 
-    pages = []
-    cur = ''
-    cur_newlines = 0
-    lines = text.split('\n')
-    for i, line in enumerate(lines):
-        seg = line if i == len(lines) - 1 else line + '\n'
-        # 单段超长：先封当前页，再按字符硬切成多页
-        if len(seg) > char_threshold:
-            if cur:
-                pages.append(cur)
-                cur = ''
-                cur_newlines = 0
-            for j in range(0, len(seg), char_threshold):
-                pages.append(seg[j:j + char_threshold])
-            continue
-        # 当前页已满：换页
-        if cur_newlines >= newline_threshold or len(cur) + len(seg) > char_threshold:
-            if cur:
-                pages.append(cur)
-            cur = ''
-            cur_newlines = 0
-        cur += seg
-        cur_newlines += 1
-    if cur:
-        pages.append(cur)
-    return pages
 
-def send_group_msg_forward_paginated(ws, group_id, text, uin, name, newline_threshold=5, char_threshold=500):
-    """按 multi_textbox 配置分页后以合并转发发送
+def clean_ai_segment_markers(text, marker=AI_SEGMENT_MARKER):
+    """移除AI回复中的分段标记，用于写入对话历史
 
-    将文本按换行数/字符数分页，每页作为一条合并转发节点。
-    文本无需分页时退化为单条合并转发。
+    Args:
+        text: AI回复文本
+        marker: 分段标记
+    Returns:
+        去除标记并压缩多余空行后的文本
+    """
+    import re
+    if not text:
+        return ''
+    cleaned = text.replace(marker, '')
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    return cleaned.strip()
+
+
+def send_group_msg_ai_segmented(ws, group_id, text, uin, name, footer='', max_len=299):
+    """按AI自己的分段标记发送消息
+
+    AI在回复中单独一行输出 <<<SEP>>> 标记需要断开的位置，
+    程序据此将回复切分成多条消息，以合并转发形式发送（每段一条节点）。
+    AI未分段但内容超过 max_len（QQ单条消息上限）时，使用智能断点兜底硬切。
+    内容较短无需分段时返回 False，由调用方作为单条普通消息发送。
 
     Args:
         ws: websocket连接对象
         group_id: 目标群号
-        text: 待发送的长文本
+        text: AI回复文本
         uin: 转发节点显示的QQ号
         name: 转发节点显示的名字
-        newline_threshold: 分页的换行数阈值
-        char_threshold: 分页的字符数阈值
+        footer: 追加在最后一段末尾的文本（如AI生成提示）
+        max_len: 每段最大字符数兜底上限
+    Returns:
+        bool: True 表示已通过合并转发发送，False 表示应作为单条消息发送
     """
-    pages = paginate_text(text, newline_threshold=newline_threshold, char_threshold=char_threshold)
-    if len(pages) <= 1:
-        send_group_single_forward_msg(ws, group_id, uin, name, text)
-        return
+    parts = split_text_by_ai_marker(text)
+    if len(parts) <= 1:
+        single = parts[0] if parts else text
+        if not single or len(single) <= max_len:
+            return False
+        send_group_msg_forward_segmented(ws, group_id, single + footer, uin, name, max_len=max_len)
+        return True
+    if footer:
+        parts[-1] = parts[-1] + footer
     nodes = []
-    for page in pages:
+    for part in parts:
         nodes.append({
             "type": "node",
             "data": {
                 "uin": uin,
                 "name": name,
-                "content": [{"type": "text", "data": {"text": page}}]
+                "content": [{"type": "text", "data": {"text": part}}]
             }
         })
     send_group_forward_msg(ws, group_id, nodes)
+    return True
