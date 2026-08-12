@@ -46,7 +46,7 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
         if user_id in builtins.config["bot_admin_ids"]:
             if raw_message.startswith(f"{builtins.config["command_prefix"]}python.corun\n"):
                 code = raw_message[len(f"{builtins.config["command_prefix"]}python.corun\n"):]
-                result = exec_and_capture(code,sys,io,traceback,ws)
+                result = exec_and_capture(code,sys,io,traceback,ws,group_id,self_id,user_id,msg)
             else:
                 code = raw_message[len(f"{builtins.config["command_prefix"]}lua.corun\n"):]
                 result = lua_exec_and_capture(code)

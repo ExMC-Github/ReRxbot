@@ -2,7 +2,7 @@
 import traceback
 
 
-def exec_and_capture(code: str,sys,io,traceback,ws) -> str:
+def exec_and_capture(code: str,sys,io,traceback,ws,group_id=None,self_id=None,user_id=None,msg=None) -> str:
     """执行代码并捕获标准输出及异常，返回输出的字符串"""
     # 创建字符串缓冲区来替代标准输出
     stdout_capture = io.StringIO()
@@ -11,7 +11,13 @@ def exec_and_capture(code: str,sys,io,traceback,ws) -> str:
     sys.stdout = stdout_capture
 
     # 准备一个命名空间，可以预先放入一些安全模块或限制
-    namespace = {'ws': ws}
+    namespace = {
+        'ws': ws,
+        'group_id': group_id,
+        'self_id': self_id,
+        'user_id': user_id,
+        'msg': msg,
+    }
 
     try:
         # 使用 compile 编译代码，指定模式为 'exec'
