@@ -1,4 +1,5 @@
 # 在受限命名空间中执行代码并捕获标准输出/异常
+import traceback
 
 
 def exec_and_capture(code: str,sys,io,traceback,ws) -> str:
@@ -29,3 +30,26 @@ def exec_and_capture(code: str,sys,io,traceback,ws) -> str:
     output = stdout_capture.getvalue()
     stdout_capture.close()
     return output
+
+
+def lua_exec_and_capture(code: str) -> str:
+    """使用 lupa 执行 Lua 代码并捕获输出/异常，返回输出的字符串"""
+    try:
+        from lupa import LuaRuntime
+    except ImportError:
+        return traceback.format_exc(limit=1) + "\n请先安装 lupa：pip install lupa"
+
+    output_lines = []
+
+    def lua_print(*args):
+        # 将 Lua 的 print 输出捕获到列表中
+        output_lines.append(" ".join(str(a) for a in args))
+
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    lua.globals().print = lua_print
+
+    try:
+        lua.execute(code)
+    except Exception:
+        return traceback.format_exc()
+    return "\n".join(output_lines)

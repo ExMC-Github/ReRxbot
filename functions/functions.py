@@ -3,7 +3,7 @@ from loguru import logger
 import json, io, sys, traceback, base64
 from PIL import ImageGrab
 from feature.messages.send import send_group_msg, send_group_msg_nolog_for_screenshot
-from feature.utils.exec_and_capture import exec_and_capture
+from feature.utils.exec_and_capture import exec_and_capture, lua_exec_and_capture
 from feature.group_manage.special_title import set_group_special_title
 from feature.group_manage.ban import set_group_ban
 from feature.group_manage.poke import unique_identifier
@@ -42,13 +42,17 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
             after_at_text.append(seg_data.get("text", ""))
     at_full_text = "".join(after_at_text).strip() if is_at_me else ""
     
-    if raw_message.startswith(f"{builtins.config["command_prefix"]}python.corun\n"):
+    if raw_message.startswith(f"{builtins.config["command_prefix"]}python.corun\n") or raw_message.startswith(f"{builtins.config["command_prefix"]}lua.corun\n"):
         if user_id in builtins.config["bot_admin_ids"]:
-            code = raw_message[len(f"{builtins.config["command_prefix"]}python.corun\n"):]
-            result = exec_and_capture(code,sys,io,traceback,ws)
+            if raw_message.startswith(f"{builtins.config["command_prefix"]}python.corun\n"):
+                code = raw_message[len(f"{builtins.config["command_prefix"]}python.corun\n"):]
+                result = exec_and_capture(code,sys,io,traceback,ws)
+            else:
+                code = raw_message[len(f"{builtins.config["command_prefix"]}lua.corun\n"):]
+                result = lua_exec_and_capture(code)
             send_group_msg(ws,group_id,str(result).rstrip('\r\n'))
         else:
-            send_group_msg(ws,group_id,str(builtins.config["bot_admin_ids"])+" | "+str(user_id in builtins.config["bot_admin_ids"])+" | "+str(user_id)+" | "+str(self_id))
+            send_group_msg(ws,group_id,"权限不足，只有Bot管理员可以使用此命令")
 
     if raw_message == "test":
         send_group_msg(ws,group_id,"状态正常")
