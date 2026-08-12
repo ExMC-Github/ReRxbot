@@ -11,6 +11,7 @@ config = {
     "bot_admin_ids": [3657936745,2545869165,2535246057,1610915093,2975227763],
     "bot_group": 1081097838,
     "command_prefix": "ex.",
+    "pokeme_msg": "不要戳了喵(#`Д´)ﾉ 要被戳扁了喵=*-*=",
     "bot_disable_settings":{
         "group_settings":{
             "771866544": {

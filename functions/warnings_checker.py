@@ -13,7 +13,7 @@ def embed_check():
         tmp = tmp + f"config: {type(config)}\n"
         tmp = tmp + f"config.ai_python_exec: {config["ai_settings"]["ai_python_exec"]}\n"
         tmp = tmp + f"os.path.exists(config.ai_python_exec): {os.path.exists(config["ai_settings"]["ai_python_exec"])}\n"
-        tmp = tmp + f"什么？为什么我写python要用lua的语法，这里指的是dict用.访问，其实是我闲的，反正Real代码又不是这么写的\ndump time: {datetime.datetime.now()}"
+        tmp = tmp + f"dump time: {datetime.datetime.now()}"
 
         send_group_msg(builtins.ws,varlist.tpd_group,tmp)
     if not os.path.exists(config["ai_settings"]["ai_python_exec"]):
@@ -21,9 +21,18 @@ def embed_check():
         
 def python_check():
     if varlist.Debug:
-        tmp = f"""functions.warnings_checker.python_check
-dump message: {sys.version}
-"""
+        if hasattr(sys,"built_target"):
+            import encryption
+            tmp = f"""functions.warnings_checker.python_check
+dump message: 
+sys.version: {sys.version}
+encryption module:{encryption}
+sys.built_target: {sys.built_target}"""
+        else:
+            tmp = f"""functions.warnings_checker.python_check
+dump message: 
+sys.version: {sys.version}"""
+
         send_group_msg(builtins.ws,varlist.tpd_group,tmp)
     
     try:

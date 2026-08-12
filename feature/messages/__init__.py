@@ -7,7 +7,7 @@ from .forward import (
     send_group_msg_forward_segmented,
     split_text_into_chunks,
 )
-from .manage import delete_message, set_emoji_like, get_message_text, mark_msg_as_read, get_msg
+from .manage import delete_message, set_emoji_like, get_message_text, mark_msg_as_read, get_msg, get_msg_sync, resolve_sync_response
 
 __all__ = [
     "send_group_msg",
@@ -22,4 +22,6 @@ __all__ = [
     "get_message_text",
     "mark_msg_as_read",
     "get_msg",
+    "get_msg_sync",
+    "resolve_sync_response",
 ]

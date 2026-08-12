@@ -246,6 +246,77 @@ def extract_image_descriptions(msg, config, client_type="ai"):
     return '\n'.join(image_descriptions)
 
 
+def get_reply_message_text(msg, ws, timeout=3.0, config=None, client_type="ai"):
+    """提取消息开头引用的（reply）消息内容
+
+    引用段只出现在消息开头：{"type": "reply", "data": {"id": "..."}}
+    通过 get_msg 同步获取被引用的消息，并拼接为可读文本。
+    被引用消息中的图片会走视觉模型（vit）生成描述（需传入 config 且 vit_enable 开启）。
+
+    Args:
+        msg: OneBot 消息对象（含 message 段数组）
+        ws: WebSocket 连接
+        timeout: 获取被引用消息的超时时间（秒）
+        config: 配置字典（用于 vit 图片分析，传 None 时图片只显示占位符）
+        client_type: AI类型（"ai" / "at" / "defined"），用于隔离视觉客户端
+
+    Returns:
+        引用内容字符串（如 "[引用消息] 昵称: 内容"），无引用或获取失败时返回 None
+    """
+    import re
+    from feature.messages.manage import get_msg_sync
+
+    message_segments = msg.get('message', [])
+    reply_id = None
+
+    if message_segments and message_segments[0].get('type') == 'reply':
+        reply_id = message_segments[0].get('data', {}).get('id')
+    elif not message_segments:
+        # 兜底：从 raw_message 的 CQ 码中提取
+        raw_message = msg.get('raw_message', '')
+        match = re.match(r'\[CQ:reply,id=(-?\d+)\]', raw_message)
+        if match:
+            reply_id = match.group(1)
+
+    if reply_id is None:
+        return None
+
+    try:
+        reply_id = int(reply_id)
+    except (ValueError, TypeError):
+        return None
+
+    reply_msg = get_msg_sync(ws, reply_id, timeout=timeout)
+    if not reply_msg:
+        return None
+
+    # 提取被引用消息的内容（文本/图片/表情等）
+    vit_enabled = bool(config) and config["ai_settings"].get('vit_enable', False)
+    reply_text_parts = []
+    for segment in reply_msg.get('message', []):
+        seg_type = segment.get('type')
+        seg_data = segment.get('data', {})
+        if seg_type == 'text' and seg_data.get('text'):
+            reply_text_parts.append(seg_data['text'])
+        elif seg_type == 'image':
+            image_url = seg_data.get('url', '')
+            if vit_enabled and image_url:
+                description = analyze_image(image_url, config, client_type)
+                reply_text_parts.append(f"【图片】{description}【/图片】")
+            else:
+                file_name = seg_data.get('file', '')
+                reply_text_parts.append(f"[图片:{file_name}]" if file_name else '[图片]')
+        elif seg_type == 'face':
+            reply_text_parts.append('[表情]')
+
+    reply_text = ''.join(reply_text_parts).strip()
+    if not reply_text:
+        return None
+
+    sender_nickname = reply_msg.get('sender', {}).get('nickname', '未知用户')
+    return f"[引用消息] {sender_nickname}: {reply_text}"
+
+
 # 存储每个群的对话历史
 ai_conversation_history = {}
 ai_threads = {}
@@ -257,6 +328,45 @@ defined_threads = {}
 # 被AI忽略的用户（非机器人群中的"禁言"等效为忽略，AI不再接收该用户消息）
 # 格式: {group_id: set(user_ids)}
 ignored_users = {}
+
+# 每个群的AI工具启停设置（仅内存管理，不保存到config，机器人重启后重置）
+# 格式: {group_id: {tool_name: {"enabled": bool, "off_feedback": str}}}
+group_ai_tool_settings = {}
+
+# 可管理的AI工具名称及其说明
+AI_TOOL_NAMES = {
+    "dpsk": "DeepSeek 对话 (ex.dpsk)",
+    "at": "被@触发的AI对话",
+    "defined": "defined 模式对话",
+    "mute": "AI禁言/忽略工具",
+    "unmute": "AI解除禁言/取消忽略工具",
+    "filedir": "AI目录浏览工具",
+    "execute_code": "AI代码执行工具",
+    "web_fetch": "AI网页访问工具",
+}
+
+
+def get_tool_setting(group_id, tool_name):
+    """获取某个群某个AI工具的设置，未设置时返回None"""
+    return group_ai_tool_settings.get(str(group_id), {}).get(tool_name)
+
+
+def is_tool_enabled(group_id, tool_name):
+    """判断某个群某个AI工具是否启用（默认启用）"""
+    setting = get_tool_setting(group_id, tool_name)
+    if setting is None:
+        return True
+    return setting.get("enabled", True)
+
+
+def get_tool_off_feedback(group_id, tool_name, default_feedback):
+    """获取某个群某个AI工具关闭时的反馈文案，未设置反馈时使用默认文案"""
+    setting = get_tool_setting(group_id, tool_name)
+    if setting:
+        feedback = (setting.get("off_feedback") or "").strip()
+        if feedback:
+            return feedback
+    return default_feedback
 
 
 # 定义可用的工具函数
@@ -778,6 +888,12 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
     import builtins
     
     try:
+        # 检查该AI工具是否在本群被关闭（由 ex.dpsk.set 设置，仅内存生效）
+        if not is_tool_enabled(group_id, tool_name):
+            feedback = get_tool_off_feedback(group_id, tool_name, f"本群已关闭AI工具 {tool_name}")
+            logger.info(f"AI工具 {tool_name} 在本群 {group_id} 已关闭，返回反馈")
+            return f"本群已关闭AI工具 {tool_name}：{feedback}"
+        
         if tool_name == "mute":
             target_id = tool_args.get("user_id", user_id)
             duration = tool_args.get("duration", random.randint(60, 300))
@@ -1032,6 +1148,11 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     if image_content:
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
+    # 提取引用消息内容（引用只会出现在消息开头，引用的图片走vit）
+    reply_content = get_reply_message_text(msg, ws, config=config, client_type="defined")
+    if reply_content:
+        user_input = f"{reply_content}\n{user_input}" if user_input.strip() else reply_content
+    
     # 构建额外的提示信息
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']}"
     
@@ -1121,6 +1242,11 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     if image_content:
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
+    # 提取引用消息内容（引用只会出现在消息开头，引用的图片走vit）
+    reply_content = get_reply_message_text(msg, ws, config=config, client_type="ai")
+    if reply_content:
+        user_input = f"{reply_content}\n{user_input}" if user_input.strip() else reply_content
+    
     # 构建额外的提示信息
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
@@ -1209,6 +1335,11 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
     if image_content:
         user_input = f"{user_input}\n{image_content}" if user_input.strip() else image_content
     
+    # 提取引用消息内容（引用只会出现在消息开头，引用的图片走vit）
+    reply_content = get_reply_message_text(original_msg, ws, config=config, client_type="at")
+    if reply_content:
+        user_input = f"{reply_content}\n{user_input}" if user_input.strip() else reply_content
+    
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
     if group_id not in at_ai_conversation_history:
@@ -1275,6 +1406,77 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
             del at_ai_threads[group_id]
 
 
+def handle_ai_tool_set(ws, group_id, raw_message, config, user_id):
+    """处理 ex.dpsk.set 命令：设置本群AI工具启停状态
+
+    设置仅保存在内存中，不写入config，机器人重启后重置。
+    用法:
+        ex.dpsk.set <工具名> on                  （启用工具，无需关闭反馈）
+        ex.dpsk.set <工具名> off [关闭反馈]      （关闭工具，可指定关闭反馈文案）
+        ex.dpsk.set list                         （查看本群工具状态）
+    """
+    from feature.messages.send import send_group_msg
+
+    prefix = f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.set"
+    arg_str = raw_message[len(prefix):].strip()
+
+    # 非管理员拒绝
+    if user_id not in config.get("bot_admin_ids", []):
+        send_group_msg(ws, group_id, "仅机器人管理员可以使用 ex.dpsk.set 命令", True)
+        return
+
+    # 查看本群工具状态
+    if not arg_str or arg_str.lower() in ("list", "status"):
+        lines = ["本群AI工具状态（仅内存，重启后重置）:"]
+        group_settings = group_ai_tool_settings.get(str(group_id), {})
+        if not group_settings:
+            lines.append("  所有工具均为默认启用状态")
+        else:
+            for tool_name in AI_TOOL_NAMES:
+                setting = group_settings.get(tool_name)
+                if setting is None:
+                    lines.append(f"  {tool_name}: 启用")
+                else:
+                    state = "启用" if setting.get("enabled", True) else "关闭"
+                    feedback = setting.get("off_feedback", "")
+                    lines.append(f"  {tool_name}: {state}" + (f"（反馈: {feedback}）" if feedback else ""))
+        send_group_msg(ws, group_id, "\n".join(lines), True)
+        return
+
+    # 解析参数: 工具名 状态 [关闭反馈]
+    args = arg_str.split(" ", 2)
+    tool_name = args[0].strip().lower()
+    status = args[1].strip().lower() if len(args) > 1 else ""
+    feedback = args[2].strip() if len(args) > 2 else ""
+
+    # 校验工具名
+    if tool_name not in AI_TOOL_NAMES:
+        send_group_msg(ws, group_id,
+                       f"未知的AI工具: {tool_name}\n可用工具: {', '.join(AI_TOOL_NAMES.keys())}", True)
+        return
+
+    # 校验状态
+    if status not in ("on", "off"):
+        send_group_msg(ws, group_id,
+                       "状态参数无效，请输入 on 或 off\n用法: ex.dpsk.set <工具名> <on|off> [关闭反馈]", True)
+        return
+
+    # 写入内存（不保存到config）
+    group_settings = group_ai_tool_settings.setdefault(str(group_id), {})
+    if status == "on":
+        # 切换到on状态不需要关闭反馈，同时清空之前的反馈文案
+        group_settings[tool_name] = {"enabled": True, "off_feedback": ""}
+        send_group_msg(ws, group_id, f"已启用本群的AI工具 {tool_name}", True)
+    else:
+        group_settings[tool_name] = {"enabled": False, "off_feedback": feedback}
+        reply = f"已关闭本群的AI工具 {tool_name}"
+        if feedback:
+            reply += f"，关闭反馈: {feedback}"
+        send_group_msg(ws, group_id, reply, True)
+
+    logger.info(f"群 {group_id} 设置AI工具 {tool_name} = {status}（关闭反馈: {feedback}）")
+
+
 def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_id, 
                        is_at_me, at_full_text, ai_manager):
     """处理AI相关的命令"""
@@ -1282,10 +1484,14 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     user_id = msg.get('sender', {}).get('user_id')
     
+    # ex.dpsk.set：设置本群AI工具启停状态（仅内存生效，不保存到config）
+    if raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.set"):
+        handle_ai_tool_set(ws, group_id, raw_message, config, user_id)
+        return
+    
     # bot_disable_settings: ai_enabled = False 时禁用AI，不回复（什么也不做，也不发消息）
     group_settings = config.get("bot_disable_settings", {}).get("group_settings", {}).get(str(group_id), {})
     if not group_settings.get("ai_enabled", True):
-        logger.info(f"群 {group_id} 已禁用AI，忽略AI相关命令")
         return
     
     # 检查该用户是否被AI忽略（非机器人群中mute等效为忽略，AI不再接收其消息）
@@ -1295,6 +1501,10 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     # 处理defined命令(使用defined.txt提示词)
     if raw_message.startswith("defined "):
+        if not is_tool_enabled(group_id, "defined"):
+            feedback = get_tool_off_feedback(group_id, "defined", "本群已关闭 defined 对话功能")
+            send_group_msg(ws, group_id, feedback, True)
+            return
         if group_id in defined_threads and defined_threads[group_id].is_alive():
             send_group_msg(ws, group_id, f"本群已有defined对话正在进行，请等待完成后再试", True)
         else:
@@ -1309,6 +1519,10 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     # 处理原有的ex.dpsk命令
     elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):
+        if not is_tool_enabled(group_id, "dpsk"):
+            feedback = get_tool_off_feedback(group_id, "dpsk", f"本群已关闭 {config['ai_settings']['ai_name']} 对话功能")
+            send_group_msg(ws, group_id, feedback, True)
+            return
         if group_id in ai_threads and ai_threads[group_id].is_alive():
             send_group_msg(ws, group_id, f"本群已有 {config['ai_settings']['ai_name']} 对话正在进行，请等待完成后再试", True)
         else:
@@ -1330,6 +1544,10 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     elif is_at_me and (at_full_text or any(seg.get("type") == "image" for seg in msg.get("message", []))):
         if config["ai_settings"].get('at_ai_enable', False):
+            if not is_tool_enabled(group_id, "at"):
+                feedback = get_tool_off_feedback(group_id, "at", f"本群已关闭被@触发的 {config['ai_settings']['ai_name']} 对话")
+                send_group_msg(ws, group_id, feedback, True)
+                return
             if group_id in at_ai_threads and at_ai_threads[group_id].is_alive():
                 send_group_msg(ws, group_id, f"本群已有 {config['ai_settings']['ai_name']} 对话（被@触发）正在进行，请等待完成后再试", True)
             else:

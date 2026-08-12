@@ -1,10 +1,12 @@
 # 这是ExRFy写的，部分是AI写的
 from loguru import logger
-import json, io, dis, sys, traceback
-from feature.messages.send import send_group_msg
+import json, io, sys, traceback, base64
+from PIL import ImageGrab
+from feature.messages.send import send_group_msg, send_group_msg_nolog_for_screenshot
 from feature.utils.exec_and_capture import exec_and_capture
 from feature.group_manage.special_title import set_group_special_title
 from feature.group_manage.ban import set_group_ban
+from feature.group_manage.poke import unique_identifier
 from feature.group_manage.status import get_version_info, get_llbot_info
 import builtins, random
 
@@ -16,6 +18,7 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     group_name = msg.get('group_name')        # 群名称
     user_id = msg.get('sender', {}).get('user_id')  # 发送者QQ
     self_id = msg.get('self_id')
+    sub_type = msg.get('sub_type')
     nickname = msg.get('sender', {}).get('nickname')  # 昵称
     msgtime = msg.get('time')
     message_id = msg.get('message_id')
@@ -25,7 +28,6 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     # bot_disable_settings: 群设置（is_only_admin_can_use = True 时仅管理员可用，非管理员不回复也不发消息）
     group_settings = builtins.config.get("bot_disable_settings", {}).get("group_settings", {}).get(str(group_id), {})
     if group_settings.get("is_only_admin_can_use", False) and user_id not in builtins.config["bot_admin_ids"]:
-        logger.info(f"群 {group_id} 设置了仅管理员可用，非管理员 {user_id} 的消息被忽略")
         return
 
     if self_id not in builtins.config["bot_admin_ids"]:
@@ -41,9 +43,9 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
             after_at_text.append(seg_data.get("text", ""))
     at_full_text = "".join(after_at_text).strip() if is_at_me else ""
     
-    if raw_message.startswith("ex.python.corun\n"):
+    if raw_message.startswith(f"{builtins.config["command_prefix"]}.python.corun\n"):
         if user_id in builtins.config["bot_admin_ids"]:
-            code = raw_message[len("ex.python.corun\n"):]
+            code = raw_message[len(f"{builtins.config["command_prefix"]}.python.corun\n"):]
             result = exec_and_capture(code,sys,io,traceback,ws)
             send_group_msg(ws,group_id,str(result).rstrip('\r\n'))
         else:
@@ -52,14 +54,32 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     if raw_message == "test":
         send_group_msg(ws,group_id,"状态正常")
 
-    # 处理 get_version_info（查询框架版本）
+    if raw_message.startswith("戳戳我"):
+        unique_identifier(ws,group_id,user_id)
+    
     if raw_message == "get_version_info" or raw_message == f"{builtins.config['command_prefix']}get_version_info":
         get_version_info(ws,group_id)
 
-    # 处理 #ll / #llbot（查询 LLOneBot 状态）
     if raw_message == "#ll" or raw_message == "#llbot":
         get_llbot_info(ws,group_id)
-        
+
+    if raw_message == 'peekserver' or raw_message == f'{builtins.config["command_prefix"]}peekserver':
+            if user_id in builtins.config["bot_admin_ids"]:
+                screenshot = ImageGrab.grab()
+                img_bytes = io.BytesIO()
+                screenshot.save(img_bytes, format='PNG')
+                img_bytes = img_bytes.getvalue()
+                base64_str = base64.b64encode(img_bytes).decode('utf-8')
+                send_group_msg_nolog_for_screenshot(ws,group_id,f'[CQ:image,file=base64://{base64_str}]',False)
+            else:
+                send_group_msg(ws,group_id,"权限不足，只有Bot管理员可以使用此命令")
+
+    if sub_type is not None:
+            if sub_type == "poke":
+                if msg.get('target_id') == self_id:
+                    send_group_msg(ws,group_id,builtins.config["pokeme_msg"])
+            return
+    
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
             raw_title = raw_message[5:]
