@@ -13,3 +13,4 @@ ai-embed-python/
 ai-embed-python-*/
 *.pye
 rotor_key.py
+.venv/
