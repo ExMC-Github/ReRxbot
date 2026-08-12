@@ -43,4 +43,4 @@ sys.version: {sys.version}"""
         if not hasattr(sys,"built_target"):
             raise NotFoundBuiltTargetError("未在sys模块中找到构建类型")
     except:
-        logger.critical("不是Re-NEPython环境，机器人部分功能可能无法使用！")
+        logger.warning("不是Re-NEPython环境，机器人部分功能可能无法使用！")
