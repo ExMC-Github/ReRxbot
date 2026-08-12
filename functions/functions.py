@@ -43,9 +43,9 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
             after_at_text.append(seg_data.get("text", ""))
     at_full_text = "".join(after_at_text).strip() if is_at_me else ""
     
-    if raw_message.startswith(f"{builtins.config["command_prefix"]}.python.corun\n"):
+    if raw_message.startswith(f"{builtins.config["command_prefix"]}python.corun\n"):
         if user_id in builtins.config["bot_admin_ids"]:
-            code = raw_message[len(f"{builtins.config["command_prefix"]}.python.corun\n"):]
+            code = raw_message[len(f"{builtins.config["command_prefix"]}python.corun\n"):]
             result = exec_and_capture(code,sys,io,traceback,ws)
             send_group_msg(ws,group_id,str(result).rstrip('\r\n'))
         else:
