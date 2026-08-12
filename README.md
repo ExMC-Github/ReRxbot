@@ -20,7 +20,7 @@
 
 最佳运行环境是 3.14+
 
-<img src="https://img.shields.io/badge/Python-3.12+-blue">
+<img src="https://img.shields.io/badge/Python-3.14+-blue">
 
 <img src="https://img.shields.io/badge/使用提示-生产环境建议使用 venv 或者 uv 等 虚拟环境-red">
 
