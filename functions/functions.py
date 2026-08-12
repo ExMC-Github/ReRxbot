@@ -121,9 +121,11 @@ def qq_private_message(ws,message):
 def qq_notice_message(ws, message):
     """处理通知类事件（如：群内戳一戳）"""
     msg = json.loads(message)
+    group_settings = builtins.config.get("bot_disable_settings", {}).get("group_settings", {}).get(str(group_id), {})
+    if group_settings.get("is_only_admin_can_use", False) and msg.get('user_id') not in builtins.config["bot_admin_ids"]:
+        return
     if msg.get('notice_type') == 'notify' and msg.get('sub_type') == 'poke':
-        # 只处理戳到 bot 自己的情况，避免误回复
         if msg.get('target_id') == msg.get('self_id'):
             group_id = msg.get('group_id')
             if group_id:
-                send_group_msg(ws, group_id, builtins.config["pokeme_msg"])
+                send_group_msg(ws, group_id, f"[CQ:at,qq={msg.get("user_id")}] " + builtins.config["pokeme_msg"],False)
