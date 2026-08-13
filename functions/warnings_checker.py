@@ -53,10 +53,10 @@ sys.version: {sys.version}\"\"\"
 def module_check():
     logger.info("Bootstrap Module Check")
     print("")
-    check_module_names = ['annotated_types', 'anyio', 'boto3', 'botocore', 'bs4', 'certifi', 'charset_normalizer', 'colorama', 'dateutil', 'distro', 'h11', 'httpcore2', 'httpx2', 'idna', 'jiter', 'jmespath', 'loguru', 'lupa', 'openai', 'PIL', 'prettytable', 'pydantic', 'pydantic_core', 'requests', 's3transfer', 'six', 'sniffio', 'soupsieve', 'tqdm', 'truststore', 'typing_extensions', 'typing_inspection', 'urllib3', 'wcwidth', 'websocket', 'win32_setctime']
+    check_module_names = ['annotated_types', 'anyio', 'boto3', 'botocore', 'bs4', 'certifi', 'charset_normalizer', 'colorama', 'dateutil', 'distro', 'h11', 'httpcore2', 'httpx2', 'idna', 'jiter', 'jmespath', 'loguru', 'lupa', 'openai', 'PIL', 'prettytable', 'pydantic', 'pydantic_core', 'requests', 's3transfer', 'six', 'sniffio', 'soupsieve', 'tqdm', 'truststore', 'typing_extensions', 'typing_inspection', 'urllib3', 'wcwidth', 'websocket', 'win32_setctime', 'httpx']
     if sys.version_info < (3,14):
         check_module_names.append("zstandard")
-        
+
     for i in check_module_names:
         try:
             a = __import__(i)
