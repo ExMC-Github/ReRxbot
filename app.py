@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from loguru import logger
 logger.add('app.log')
 import websocket, json, builtins, os, sys, platform, tarfile, datetime
