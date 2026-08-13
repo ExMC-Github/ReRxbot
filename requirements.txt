@@ -8,3 +8,4 @@ beautifulsoup4
 boto3
 Pillow
 lupa
+httpx
