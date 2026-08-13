@@ -2,12 +2,16 @@
 
 from loguru import logger
 logger.add('app.log')
-import websocket, json, builtins, os, sys, platform, tarfile, datetime
-import varlist as vars
 from config import config
-from openai import OpenAI
+import builtins
 builtins.config = config
-from functions import qq_group_message, qq_private_message, qq_notice_message, botstatus, warnings_checker
+from functions import warnings_checker
+warnings_checker.module_check()
+
+import websocket, json, os, sys, platform, tarfile, datetime
+import varlist as vars
+from openai import OpenAI
+from functions import qq_group_message, qq_private_message, qq_notice_message, botstatus
 from functions.ai_manager import AIManager
 from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, load_auto_saved_memories
 from feature.messages.send import send_group_msg
@@ -87,6 +91,7 @@ def on_open(ws):
     logger.info("连接已打开")
     warnings_checker.embed_check()
     warnings_checker.python_check()
+    
     
 
 def main():

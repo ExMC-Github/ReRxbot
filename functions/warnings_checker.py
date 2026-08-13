@@ -2,12 +2,12 @@ import os, varlist
 import builtins, datetime, sys
 from loguru import logger
 config = builtins.config
-from feature.messages.send import send_group_msg
 from .warnings_levels import NotFoundExRFyError, NotFoundBuiltTargetError
 
 def embed_check():
     """
     if varlist.Debug:
+        from feature.messages.send import send_group_msg
         tmp = ""
         tmp = tmp + "functions.warnings_checker.embed_check called\n"
         tmp = tmp + "dump message:\n"
@@ -19,11 +19,12 @@ def embed_check():
         send_group_msg(builtins.ws,varlist.tpd_group,tmp)
     """
     if not os.path.exists(config["ai_settings"]["ai_python_exec"]):
-            logger.warning("AI独立Python沙箱可能不存在！")
+            logger.warning("AI Code Embed Sandbox Not Found!")
         
 def python_check():
     """
     if varlist.Debug:
+        from feature.messages.send import send_group_msg
         if hasattr(sys,"built_target"):
             import encryption
             tmp = f\"\"\"functions.warnings_checker.python_check
@@ -42,18 +43,25 @@ sys.version: {sys.version}\"\"\"
     try:
         import encryption
         if 'ExRFy' not in sys.copyright:
-            raise NotFoundExRFyError("未在sys.copyright中找到ExRFy字样")
+            raise NotFoundExRFyError("Not Found ExRFy in sys.copyright")
 
         if not hasattr(sys,"built_target"):
-            raise NotFoundBuiltTargetError("未在sys模块中找到构建类型")
+            raise NotFoundBuiltTargetError("Not Found sys.built_target")
     except:
-        logger.warning("不是Re-NEPython环境，机器人部分功能可能无法使用！")
+        logger.warning("Not Re-NEPython env, some feature cannot be used") # 我的英语真的不算太好
 
 def module_check():
-    check_module_names = ["lupa"]
+    logger.info("Bootstrap Module Check")
+    print("")
+    check_module_names = ['annotated_types', 'anyio', 'boto3', 'botocore', 'bs4', 'certifi', 'charset_normalizer', 'colorama', 'dateutil', 'distro', 'h11', 'httpcore2', 'httpx2', 'idna', 'jiter', 'jmespath', 'loguru', 'lupa', 'openai', 'PIL', 'prettytable', 'pydantic', 'pydantic_core', 'requests', 's3transfer', 'six', 'sniffio', 'soupsieve', 'tqdm', 'truststore', 'typing_extensions', 'typing_inspection', 'urllib3', 'wcwidth', 'websocket', 'win32_setctime']
+    if sys.version_info < (3,14):
+        check_module_names.append("zstandard")
+        
     for i in check_module_names:
         try:
-            __import__(i)
+            a = __import__(i)
+            logger.info(f"Found {i} at {a.__file__}")
         except ImportError:
             logger.critical(f"Not Found {i}")
+    print("")
 
