@@ -75,10 +75,17 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
 
     if builtins.config["i_am_exrfy"]: # 判断是不是ExRFy
         ex_result = ex_qq_group_message(ws,message)
-        if ex_result == etypes.EX_DO_NOTHING:
-            pass # 不处理
-        elif ex_result == etypes.EX_BREAK_MESSAGE:
-            return # 我去了，这必须直接return啊
+        if ex_result in etypes.ALL_TYPES:
+            if ex_result == etypes.EX_DO_NOTHING:
+                pass # 不处理
+            elif ex_result == etypes.EX_BREAK_MESSAGE:
+                return # 我去了，这必须直接return啊
+        else:
+            import varlist
+            if varlist.Debug:
+                send_group_msg(ws,varlist.tpd_group,f"unknown return code: {str(ex_result)}")
+            logger.warning(f'unknown return code: {str(ex_result)}')
+        
     
     if ai_client and ai_manager:
         from . import ai_functions

@@ -45,9 +45,16 @@ def ex_qq_group_message(ws,message):
             else:
                 if user_id == 2051621535 or user_id == 3955986019:
                     set_group_ban(ws, group_id, user_id, random.randint(180, 300))
+                    return etypes.EX_BREAK_MESSAGE
                 else:
                     set_group_special_title(ws, group_id, user_id, title)
+                    return etypes.EX_BREAK_MESSAGE
 
+        if user_id in builtins.config["bot_admin_ids"] or user_id in [1610915093]:
+            if raw_message in ["召唤鱼","召唤fish","召唤西湖醋鱼"]:
+                send_group_msg(ws,group_id,"[CQ:at,qq=2975227763] 在吗",False)
+                return etypes.EX_BREAK_MESSAGE
+        
         if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019 and raw_message.startswith("那我呢"):
             set_group_ban(ws,group_id,user_id,random.randint(180,300))
             return etypes.EX_BREAK_MESSAGE
