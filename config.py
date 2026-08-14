@@ -8,7 +8,7 @@ boto3_secret_key = rot_temp.decrypt(b"\xe2\xc8 \xc2Y/>\x9f'\xe2C\xb2\x8c\x9a\xe0
 boto3_access_key = rot_temp.decrypt(b'\x1203&y\x1b\xe82F$bu\xec\x16P\xd4').decode('utf-8')
 del rot_temp, key
 config = {
-    "bot_admin_ids": [3657936745,2545869165,2535246057,1610915093,2975227763],
+    "bot_admin_ids": [3657936745,2545869165,2535246057,1610915093,2975227763,2450069268],
     "bot_group": 1081097838,
     "command_prefix": "ex.",
     "pokeme_msg": "不要戳了喵(#`Д´)ﾉ 要被戳扁了喵=*-*=",
