@@ -10,13 +10,18 @@
 #     3. 缺省 zh；无效值回落 zh
 import os
 import builtins
-from data import language_zh
-from data import language_en
 
-_LANGUAGES = {
-    "zh": language_zh,
-    "en": language_en,
-}
+try:
+    from data import language_zh
+    from data import language_en
+    _LANGUAGES = {
+        "zh": language_zh,
+        "en": language_en,
+    }
+except Exception:
+    # bindict 不可用（如未在 .venv 环境运行）：语言表置空，保证导入链不中断
+    _LANGUAGES = {}
+
 _DEFAULT = "zh"
 
 
@@ -29,7 +34,7 @@ def _select_name():
         name = str(cfg.get("bot_language", "")).strip().lower()
         if name in _LANGUAGES:
             return name
-    return _DEFAULT
+    return _DEFAULT if _DEFAULT in _LANGUAGES else next(iter(_LANGUAGES), None)
 
 
 def _load_language(mod):
@@ -39,6 +44,8 @@ def _load_language(mod):
     校验失败或加载异常时，返回键齐全、值全为空字符串的字典
     （静默降级，避免调用方 KeyError）。
     """
+    if mod is None:
+        return {}
     if mod.vaild():
         try:
             return mod.get_dict()
@@ -58,7 +65,8 @@ def setup():
 
     语言字典校验失败时所有键的值为空字符串（静默降级）。
     """
-    lang = _load_language(_LANGUAGES[_select_name()])
+    name = _select_name()
+    lang = _load_language(_LANGUAGES.get(name)) if name else {}
     builtins.language = lang
     return lang
 
@@ -78,8 +86,12 @@ class _LanguageProxy:
     def __getitem__(self, key):
         lang = getattr(builtins, "language", None)
         if lang is None:
-            lang = _load_language(_LANGUAGES[_DEFAULT])
-        return lang[key]
+            name = _select_name()
+            lang = _load_language(_LANGUAGES.get(name)) if name else {}
+        try:
+            return lang[key]
+        except KeyError:
+            return ""
 
 
 L = _LanguageProxy()
