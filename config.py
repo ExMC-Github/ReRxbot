@@ -13,6 +13,7 @@ config = {
     "bot_group": 1081097838,
     "command_prefix": "ex.",
     "i_am_exrfy": True,
+    "bot_language": "zh",
     "pokeme_msg": language_zh.get_dict()["poke_reply"],
     "bot_disable_settings":{
         "group_settings":{

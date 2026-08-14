@@ -1,7 +1,6 @@
 # 在受限命名空间中执行代码并捕获标准输出/异常
 import traceback
-from data import language_zh
-L = language_zh.get_dict()
+from functions.languages_choicer import L
 
 
 def exec_and_capture(code: str,sys,io,traceback,ws,group_id=None,self_id=None,user_id=None,msg=None) -> str:

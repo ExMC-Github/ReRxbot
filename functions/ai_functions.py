@@ -9,8 +9,7 @@ import pickle
 import sys
 import html
 from loguru import logger
-from data import language_zh
-L = language_zh.get_dict()
+from .languages_choicer import L
 
 
 # 视觉模型客户端缓存（按AI类型隔离：ai / at / defined）

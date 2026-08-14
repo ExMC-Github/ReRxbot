@@ -2,8 +2,7 @@
 
 import json, builtins, random, html
 from . import etypes
-from data import language_zh
-L = language_zh.get_dict()
+from .languages_choicer import L
 from feature.group_manage.poke import unique_identifier
 from feature.messages.send import send_group_msg
 from feature.group_manage.special_title import set_group_special_title

@@ -8,10 +8,10 @@ import json
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 
-# 本脚本由子进程运行（sys.executable），sys.path 不含项目根目录，手动加入以导入 data 包
+# 本脚本由子进程运行（sys.executable），sys.path 不含项目根目录，手动加入以导入 functions 包
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import language_zh
-L = language_zh.get_dict()
+from functions.languages_choicer import setup as setup_language, L
+setup_language()  # 子进程独立选择语言（读 BOT_LANGUAGE 环境变量，缺省 zh）
 
 
 def main():

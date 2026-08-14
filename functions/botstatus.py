@@ -2,8 +2,7 @@
 # ExRFy上其实也可以的，因为这个其实看起来挺简单的
 
 import datetime
-from data import language_zh
-L = language_zh.get_dict()
+from .languages_choicer import L
 
 # 记录机器人启动时间（模块被导入时即为启动时刻）
 _start_time = datetime.datetime.now()

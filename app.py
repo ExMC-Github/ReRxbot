@@ -7,13 +7,13 @@ import builtins
 builtins.config = config
 from functions import warnings_checker
 warnings_checker.module_check()
+from functions.languages_choicer import setup as setup_language, L
+setup_language()
 
 import websocket, json, os, sys, platform, tarfile, datetime
 import varlist as vars
 from openai import OpenAI
 from functions import qq_group_message, qq_private_message, qq_notice_message, botstatus
-from data import language_zh
-L = language_zh.get_dict()
 from functions.ai_manager import AIManager
 from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, load_auto_saved_memories
 from feature.messages.send import send_group_msg
