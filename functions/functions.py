@@ -94,10 +94,8 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
             ai_client, self_id, is_at_me, at_full_text, ai_manager
         )
         
-
 def qq_private_message(ws,message):
     pass
-
 
 def qq_notice_message(ws, message):
     """处理通知类事件（如：群内戳一戳）""" #这个注释不是我(ExRFy)写的
