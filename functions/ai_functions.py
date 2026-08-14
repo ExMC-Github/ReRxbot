@@ -1079,10 +1079,14 @@ def execute_python_code(code):
         final_code = (hook + "\n\n" + code) if hook else code
 
         # 使用子进程执行代码
+        # UTF-8 编码：避免子进程输出非 GBK 字符（如 emoji、伪本地化字符）时抛 UnicodeEncodeError
         proc = subprocess.run(
             [python_exec, '-c', final_code],
             capture_output=True,
             text=True,
+            encoding='utf-8',
+            errors='replace',
+            env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
             timeout=60  # 60秒超时
         )
 

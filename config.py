@@ -12,7 +12,7 @@ config = {
     "bot_group": 1081097838,
     "command_prefix": "ex.",
     "i_am_exrfy": True,
-    "bot_language": "en",
+    "bot_language": "zh",
     "pokeme_msg": "不要戳了喵(#`Д´)ﾉ 要被戳扁了喵=*-*=",
     "bot_disable_settings":{
         "group_settings":{

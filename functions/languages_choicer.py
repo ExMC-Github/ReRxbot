@@ -3,10 +3,11 @@
 # 用法：
 #   主进程：app.py 在 module_check() 之后调用 languages_choicer.setup()
 #   各模块：from functions.languages_choicer import L
-#   语言字典：data/language_zh.py（中文） / data/language_en.py（英文），均由 bindict 编译
+#   语言字典：data/language_zh.py（中文）/ data/language_en.py（英文）/
+#            data/language_pseudo.py（微软式伪本地化），均由 bindict 编译
 #   语言来源（按优先级）：
-#     1. 环境变量 BOT_LANGUAGE（zh / en）
-#     2. config 配置项 bot_language（zh / en）
+#     1. 环境变量 BOT_LANGUAGE（zh / en / pseudo）
+#     2. config 配置项 bot_language（zh / en / pseudo）
 #     3. 缺省 zh；无效值回落 zh
 import os
 import builtins
@@ -14,9 +15,11 @@ import builtins
 try:
     from data import language_zh
     from data import language_en
+    from data import language_pseudo
     _LANGUAGES = {
         "zh": language_zh,
         "en": language_en,
+        "pseudo": language_pseudo,
     }
 except Exception:
     # bindict 不可用（如未在 .venv 环境运行）：语言表置空，保证导入链不中断
