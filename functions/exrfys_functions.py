@@ -35,7 +35,7 @@ def ex_qq_group_message(ws,message):
 
     if "/kel" in raw_message or "[CQ:face,id=111,sub_type=1]" in raw_message:
         set_emoji_like(ws,message_id,111)
-        return etypes.EX_BREAK_MESSAGE
+        return etypes.EX_DO_NOTHING
     
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
