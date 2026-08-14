@@ -1,4 +1,6 @@
-# 这是ExRFy写的，有些是AI写的
+# 这是ExRFy写的
+# 部分代码是AI写的
+
 from loguru import logger
 import json, io, sys, traceback, base64
 from PIL import ImageGrab

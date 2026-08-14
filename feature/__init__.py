@@ -4,6 +4,8 @@
 #   messages     - 消息收发、分段、合并转发与消息管理（send/forward/manage）
 #   group_manage - 群组状态查询与管理（status/special_title/like/sign/group_list/poke/ban）
 #   utils        - 通用工具（compress_logs/right/exec_and_capture）
+# ExRFy的评价：
+#   我让AI帮我把原本很大的feature.py拆成了个package，不过老语法仍然可用（兼容）
 
 from .messages import (
     send_group_msg,

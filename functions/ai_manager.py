@@ -1,4 +1,5 @@
 # 不是我（ExRFy）写的，我看这代码像GLM-5.2帮我写的
+# 所以这个是谁写的，我也不知道，反正在exrfy-work那个机子上用ai写的，我也忘记用的哪个模型了
 import os
 from loguru import logger
 from typing import Dict, Optional

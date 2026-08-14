@@ -1,10 +1,7 @@
 # 这是Ai写的，不关ExRFy的事情
-"""AI代码审核GUI - 独立子进程运行，避免Tcl_AsyncDelete线程错误
+# 所以AI为什么要用微软雅黑，我无疑是愤怒的，必须改成宋体
+# AI写的雷霆__doc__被我删了
 
-通信协议:
-  输入: stdin 接收代码文本
-  输出: stdout 输出 JSON {"approved": bool, "timeout": bool, "extra": str|None}
-"""
 import sys
 import json
 import tkinter as tk

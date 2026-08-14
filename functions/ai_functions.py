@@ -1,4 +1,5 @@
 # 曾经是ExRFy写的，现在基本上不是ExRFy写的了，因为AI太神秘了，openai的事情就应该AI自己写
+# 所以呢？这个文件现在基本上是全AI写的，虽然说AI也参考了老代码(没Re的RxBot)
 import threading
 import re
 import random

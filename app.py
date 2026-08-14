@@ -92,7 +92,6 @@ def on_open(ws):
     warnings_checker.embed_check()
     warnings_checker.python_check()
     
-    
 
 def main():
     ws = websocket.WebSocketApp(f"ws://localhost:3001/?access_token=ExRFy123",on_open=on_open,on_message=on_message,on_error=on_error,on_close=on_close)
