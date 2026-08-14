@@ -1,6 +1,6 @@
 # 这是ExRFy写给自己用的功能，反正默认是开着的，需要手动改config.py把“i_am_exrfy”关了才会不生效
 
-import json, builtins, random
+import json, builtins, random, html
 from . import etypes
 from feature.group_manage.poke import unique_identifier
 from feature.messages.send import send_group_msg
@@ -19,7 +19,8 @@ def ex_qq_group_message(ws,message):
     nickname = msg.get('sender', {}).get('nickname')  # 昵称
     msgtime = msg.get('time')
     message_id = msg.get('message_id')
-    raw_message = msg.get('raw_message')
+    # raw_message 可能被框架进行 HTML 转义（如 &#91; -> [），统一还原后再使用
+    raw_message = html.unescape(msg.get('raw_message') or '')
     message_segments = msg.get("message", [])
 
     if raw_message == "test":

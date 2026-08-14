@@ -7,6 +7,7 @@ import json
 import os
 import pickle
 import sys
+import html
 from loguru import logger
 
 
@@ -273,8 +274,8 @@ def get_reply_message_text(msg, ws, timeout=3.0, config=None, client_type="ai"):
     if message_segments and message_segments[0].get('type') == 'reply':
         reply_id = message_segments[0].get('data', {}).get('id')
     elif not message_segments:
-        # 兜底：从 raw_message 的 CQ 码中提取
-        raw_message = msg.get('raw_message', '')
+        # 兜底：从 raw_message 的 CQ 码中提取（raw_message 可能被框架 HTML 转义，先还原）
+        raw_message = html.unescape(msg.get('raw_message', ''))
         match = re.match(r'\[CQ:reply,id=(-?\d+)\]', raw_message)
         if match:
             reply_id = match.group(1)

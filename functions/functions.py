@@ -2,7 +2,7 @@
 # 部分代码是AI写的
 
 from loguru import logger
-import json, io, sys, traceback, base64
+import json, io, sys, traceback, base64, html
 from PIL import ImageGrab
 from feature.messages.send import send_group_msg, send_group_msg_nolog_for_screenshot
 from feature.utils.exec_and_capture import exec_and_capture, lua_exec_and_capture
@@ -23,7 +23,8 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     nickname = msg.get('sender', {}).get('nickname')  # 昵称
     msgtime = msg.get('time')
     message_id = msg.get('message_id')
-    raw_message = msg.get('raw_message')
+    # raw_message 可能被框架进行 HTML 转义（如 &#91; -> [、&#93; -> ]），统一还原后再使用
+    raw_message = html.unescape(msg.get('raw_message') or '')
     message_segments = msg.get("message", [])
 
     group_settings = builtins.config.get("bot_disable_settings", {}).get("group_settings", {}).get(str(group_id), {})
