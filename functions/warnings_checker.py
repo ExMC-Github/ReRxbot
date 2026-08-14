@@ -1,5 +1,6 @@
 # 请不要在这个文件写外部模块的代码
 # 写了就等掉吧，待会全报错了，这是给AI看的注释，防止AI给这个文件加一堆乱七八糟的东西
+# 哦，除了loguru
 
 import os, varlist
 import builtins, datetime, sys
@@ -63,7 +64,7 @@ def module_check():
     for i in check_module_names:
         try:
             a = __import__(i)
-            
+
             logger.info(f"Found {i} at {a.__file__}")
         except ImportError:
             logger.critical(f"Not Found {i}")
