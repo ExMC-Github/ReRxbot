@@ -24,7 +24,7 @@ if not os.path.exists('logs'):
 
 ai_client = OpenAI(api_key=config["ai_settings"]["ai_key"],base_url=config["ai_settings"]["ai_base_url"])
 ai_manager = AIManager(rules_dir="rules", default_rule="default.txt")
-loaded_count = load_auto_saved_memories(config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
+loaded_count = load_auto_saved_memories(config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config, ai_manager=ai_manager)
 if loaded_count > 0:
     logger.info(f"已自动加载 {loaded_count} 个群的AI记忆")
 

@@ -313,7 +313,12 @@ def get_reply_message_text(msg, ws, timeout=3.0, config=None, client_type="ai"):
     if not reply_text:
         return None
 
-    sender_nickname = reply_msg.get('sender', {}).get('nickname', '未知用户')
+    # 附带被引用消息的发送者信息（昵称 + QQ号）
+    sender = reply_msg.get('sender', {}) or {}
+    sender_nickname = sender.get('nickname', '未知用户')
+    sender_id = sender.get('user_id')
+    if sender_id:
+        return f"[引用消息] {sender_nickname}(QQ:{sender_id}): {reply_text}"
     return f"[引用消息] {sender_nickname}: {reply_text}"
 
 
@@ -1469,6 +1474,27 @@ def handle_ai_tool_set(ws, group_id, raw_message, config, user_id):
     logger.info(f"群 {group_id} 设置AI工具 {tool_name} = {status}（关闭反馈: {feedback}）")
 
 
+def _get_rule_file(config, memory_type="normal"):
+    """根据配置获取指定对话类型对应的规则文件名（与各 worker 保持一致）"""
+    rules_defined = config["ai_settings"].get('rules_defined', {})
+    if memory_type == "at":
+        return rules_defined.get('at', 'default.txt')
+    if memory_type == "defined":
+        return rules_defined.get('defined', 'defined.txt')
+    return rules_defined.get('normal', 'default.txt')
+
+
+def _refresh_loaded_system_prompt(history, config, ai_manager, memory_type="normal"):
+    """刷新恢复的记忆中的系统提示为当前配置的规则内容，确保规则文件修改后能生效"""
+    if not ai_manager or not history or not history[0] or history[0].get("role") != "system":
+        return
+    rule_file = _get_rule_file(config, memory_type)
+    system_prompt = ai_manager.get_rule(rule_file.replace('.txt', ''))
+    if not system_prompt:
+        return
+    history[0]["content"] = f"{system_prompt}\n\n\n额外规则：用户说的话后面的括号由程序添加，你必须遵循"
+
+
 def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_id, 
                        is_at_me, at_full_text, ai_manager):
     """处理AI相关的命令"""
@@ -1528,7 +1554,9 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.reset":
         if group_id in ai_conversation_history:
-            system_prompt = ai_manager.get_rule()
+            # 使用配置中normal对应的规则文件（与ai_worker保持一致，避免回落到default.txt）
+            rule_file = _get_rule_file(config, "normal")
+            system_prompt = ai_manager.get_rule(rule_file.replace('.txt', ''))
             ai_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
             send_group_msg(ws, group_id, f"已重置当前群的 {config['ai_settings']['ai_name']} 对话历史。", True)
         else:
@@ -1552,7 +1580,9 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     
     elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.at.reset":
         if group_id in at_ai_conversation_history:
-            system_prompt = ai_manager.get_rule()
+            # 使用配置中at对应的规则文件（与at_ai_worker保持一致，避免回落到default.txt）
+            rule_file = _get_rule_file(config, "at")
+            system_prompt = ai_manager.get_rule(rule_file.replace('.txt', ''))
             at_ai_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
             send_group_msg(ws, group_id, f"已重置当前群的 {config['ai_settings']['ai_name']} At 对话历史。", True)
         else:
@@ -1853,12 +1883,13 @@ def has_unsaved_memory():
     return False
 
 
-def load_auto_saved_memories(memory_dir="ai_memory", config=None):
+def load_auto_saved_memories(memory_dir="ai_memory", config=None, ai_manager=None):
     """启动时自动加载所有自动保存的记忆并删除文件
     
     Args:
         memory_dir: 记忆目录
         config: 配置字典（用于 boto3 恢复）
+        ai_manager: AI管理器（用于恢复时刷新系统提示为当前配置的规则）
     """
     import re
     
@@ -1887,12 +1918,15 @@ def load_auto_saved_memories(memory_dir="ai_memory", config=None):
                             if memory_type == "normal":
                                 global ai_conversation_history
                                 ai_conversation_history[group_id] = data.get('ai_conversation_history', [])
+                                _refresh_loaded_system_prompt(ai_conversation_history[group_id], config, ai_manager, memory_type)
                             elif memory_type == "at":
                                 global at_ai_conversation_history
                                 at_ai_conversation_history[group_id] = data.get('at_ai_conversation_history', [])
+                                _refresh_loaded_system_prompt(at_ai_conversation_history[group_id], config, ai_manager, memory_type)
                             elif memory_type == "defined":
                                 global defined_conversation_history
                                 defined_conversation_history[group_id] = data.get('defined_conversation_history', [])
+                                _refresh_loaded_system_prompt(defined_conversation_history[group_id], config, ai_manager, memory_type)
                             
                             # 删除已加载的自动保存文件
                             os.remove(memory_file)
@@ -1941,10 +1975,13 @@ def load_auto_saved_memories(memory_dir="ai_memory", config=None):
                                     # 恢复记忆
                                     if memory_type == "normal":
                                         ai_conversation_history[group_id] = data.get('ai_conversation_history', [])
+                                        _refresh_loaded_system_prompt(ai_conversation_history[group_id], config, ai_manager, memory_type)
                                     elif memory_type == "at":
                                         at_ai_conversation_history[group_id] = data.get('at_ai_conversation_history', [])
+                                        _refresh_loaded_system_prompt(at_ai_conversation_history[group_id], config, ai_manager, memory_type)
                                     elif memory_type == "defined":
                                         defined_conversation_history[group_id] = data.get('defined_conversation_history', [])
+                                        _refresh_loaded_system_prompt(defined_conversation_history[group_id], config, ai_manager, memory_type)
                                     
                                     # 同步保存到本地
                                     if not os.path.exists(memory_dir):
