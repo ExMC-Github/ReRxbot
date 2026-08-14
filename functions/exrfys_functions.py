@@ -6,6 +6,7 @@ from feature.group_manage.poke import unique_identifier
 from feature.messages.send import send_group_msg
 from feature.group_manage.special_title import set_group_special_title
 from feature.group_manage.ban import set_group_ban
+from feature.messages.manage import set_emoji_like
 
 def ex_qq_group_message(ws,message):
     msg = json.loads(message)
@@ -31,6 +32,10 @@ def ex_qq_group_message(ws,message):
         unique_identifier(ws,group_id,user_id)
         return etypes.EX_BREAK_MESSAGE
 
+    if "/kel" in raw_message or "[CQ:face,id=111,sub_type=1]" in raw_message:
+        set_emoji_like(ws,message_id,111)
+        return etypes.EX_BREAK_MESSAGE
+    
     if group_id == builtins.config["bot_group"]:
         if raw_message.startswith("我要头衔 ") or raw_message.startswith("头衔测试 "):
             raw_title = raw_message[5:]
