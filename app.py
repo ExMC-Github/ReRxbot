@@ -17,6 +17,7 @@ from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, l
 from feature.messages.send import send_group_msg
 from feature.messages.manage import resolve_sync_response
 from feature.utils.compress_logs import compress_logs
+from functions import etypes
 print(vars.banner)
 if not os.path.exists('logs'):
     os.makedirs('logs')
@@ -76,6 +77,8 @@ def on_error(ws, error):
 def on_close(ws, close_status_code, close_msg):
     """连接关闭回调"""
     logger.info("连接已关闭")
+    if vars.Debug:
+        send_group_msg(ws,vars.tpd_group,"连接已关闭")
     
     # 自动保存所有群的AI记忆
     if has_unsaved_memory():
@@ -89,8 +92,18 @@ def on_close(ws, close_status_code, close_msg):
 def on_open(ws):
     """连接建立后的回调"""
     logger.info("连接已打开")
-    warnings_checker.embed_check()
-    warnings_checker.python_check()
+    if vars.Debug:
+        send_group_msg(ws,vars.tpd_group,"连接已打开")
+        send_group_msg(ws,vars.tpd_group,"正在自检多个模块...")
+
+    embed_result = warnings_checker.embed_check()
+    python_result = warnings_checker.python_check()
+
+    if vars.Debug:
+        if embed_result == etypes.EX_CHECK_SUCCESS and python_result == etypes.EX_CHECK_SUCCESS:
+            send_group_msg(ws,vars.tpd_group,"自检成功")
+        else:
+            send_group_msg(ws,vars.tpd_group,f"自检失败\nReturn Codes: \nEMBED_CHECK: {str(embed_result)}\nPYTHON_CHECK: {str(python_result)}")
     
 
 def main():

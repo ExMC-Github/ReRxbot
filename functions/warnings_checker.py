@@ -7,6 +7,7 @@ import builtins, datetime, sys
 from loguru import logger
 config = builtins.config
 from .warnings_levels import NotFoundExRFyError, NotFoundBuiltTargetError
+from . import etypes
 
 def embed_check():
     """
@@ -23,7 +24,9 @@ def embed_check():
         send_group_msg(builtins.ws,varlist.tpd_group,tmp)
     """
     if not os.path.exists(config["ai_settings"]["ai_python_exec"]):
-            logger.warning("AI Code Embed Sandbox Not Found!")
+        logger.warning("AI Code Embed Sandbox Not Found!")
+    
+    return etypes.EX_CHECK_SUCCESS
         
 def python_check():
     """
@@ -51,8 +54,11 @@ sys.version: {sys.version}\"\"\"
 
         if not hasattr(sys,"built_target"):
             raise NotFoundBuiltTargetError("Not Found sys.built_target")
+        return etypes.EX_CHECK_SUCCESS
     except:
         logger.warning("Not Re-NEPython env, some feature cannot be used") # 我的英语真的不算太好
+        return etypes.EX_CHECK_FAILED
+    
 
 def module_check():
     logger.info("Bootstrap Module Check")
@@ -67,5 +73,7 @@ def module_check():
             logger.info(f"Found {i} at {a.__file__}")
         except ImportError:
             logger.critical(f"Not Found {i}")
+            return etypes.EX_CHECK_FAILED
+    return etypes.EX_CHECK_SUCCESS
     print("")
 
