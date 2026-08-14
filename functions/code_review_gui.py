@@ -3,9 +3,15 @@
 # AI写的雷霆__doc__被我删了
 
 import sys
+import os
 import json
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+
+# 本脚本由子进程运行（sys.executable），sys.path 不含项目根目录，手动加入以导入 data 包
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data import language_zh
+L = language_zh.get_dict()
 
 
 def main():
@@ -30,7 +36,7 @@ def main():
         win_width = max(min(max_line_len * 9 + 50, 640), 420)
 
     root = tk.Tk()
-    root.title("AI代码审核")
+    root.title(L["code_review_title"])
     root.geometry(f"{win_width}x{win_height}")
 
     style = ttk.Style()
@@ -45,7 +51,7 @@ def main():
     after_id = [None]
 
     # 标题
-    ttk.Label(root, text="AI 请求执行以下 Python 代码，请审核：",
+    ttk.Label(root, text=L["code_review_prompt"],
               font=("宋体", 10, "bold")).pack(pady=(10, 5))
 
     # 代码文本区
@@ -69,7 +75,7 @@ def main():
     text_frame.grid_columnconfigure(0, weight=1)
 
     # 计时器
-    timer_label = ttk.Label(root, text=f"剩余审核时间: {remaining[0]} 秒",
+    timer_label = ttk.Label(root, text=L["code_review_remaining"].format(seconds=remaining[0]),
                             foreground="red", font=("宋体", 9))
     timer_label.pack(pady=(4, 2))
 
@@ -85,9 +91,9 @@ def main():
         state["cancelled"] = cancelled
         root.quit()
 
-    ttk.Button(btn_frame, text="确定", width=12,
+    ttk.Button(btn_frame, text=L["confirm"], width=12,
                command=lambda: finish(True)).pack(side=tk.LEFT, padx=15)
-    ttk.Button(btn_frame, text="取消", width=12,
+    ttk.Button(btn_frame, text=L["cancel"], width=12,
                command=lambda: finish(False, cancelled=True)).pack(side=tk.LEFT, padx=15)
 
     # 处理窗口关闭按钮(X) —— 与取消按钮区分，关X不弹附加内容框
@@ -101,7 +107,7 @@ def main():
         if state["approved"] is not None:
             return
         remaining[0] -= 1
-        timer_label.config(text=f"剩余审核时间: {remaining[0]} 秒")
+        timer_label.config(text=L["code_review_remaining"].format(seconds=remaining[0]))
         if remaining[0] <= 0:
             state["approved"] = False
             state["timeout"] = True
@@ -117,7 +123,7 @@ def main():
         state["cancelled"] = False
         remaining[0] = 30
         after_id[0] = None
-        timer_label.config(text=f"剩余审核时间: {remaining[0]} 秒")
+        timer_label.config(text=L["code_review_remaining"].format(seconds=remaining[0]))
 
         # 确保窗口可见并获取焦点
         root.deiconify()
@@ -140,8 +146,8 @@ def main():
         # 取消按钮：弹附加内容框（可选），不执行，结束
         if not approved and state["cancelled"]:
             extra = simpledialog.askstring(
-                "附加内容",
-                "请输入附加内容（可选，作为上下文随结果返回给AI）：\n留空或点击取消则无附加内容",
+                L["extra_content_title"],
+                L["extra_content_prompt_result"],
                 parent=root
             )
             if extra is None:
@@ -152,16 +158,16 @@ def main():
 
         # 点确定：不隐藏窗口，直接弹确认对话框（覆盖在审核窗口上方）
         do_execute = messagebox.askyesno(
-            "执行确认",
-            '是否执行此代码？\n\n选"是"：执行代码\n选"否"：返回代码审核',
+            L["execute_confirm_title"],
+            L["execute_confirm_prompt"],
             parent=root
         )
 
         if do_execute:
             # 点"是"：弹附加内容框，执行
             extra = simpledialog.askstring(
-                "附加内容",
-                "请输入附加内容（可选，作为上下文随执行结果返回给AI）：\n留空或点击取消则无附加内容",
+                L["extra_content_title"],
+                L["extra_content_prompt_execute"],
                 parent=root
             )
             if extra is None:

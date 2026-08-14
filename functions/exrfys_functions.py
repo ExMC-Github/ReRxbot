@@ -2,6 +2,8 @@
 
 import json, builtins, random, html
 from . import etypes
+from data import language_zh
+L = language_zh.get_dict()
 from feature.group_manage.poke import unique_identifier
 from feature.messages.send import send_group_msg
 from feature.group_manage.special_title import set_group_special_title
@@ -25,7 +27,7 @@ def ex_qq_group_message(ws,message):
     message_segments = msg.get("message", [])
 
     if raw_message == "test":
-        send_group_msg(ws,group_id,"状态正常")
+        send_group_msg(ws,group_id,L["status_normal"])
         return etypes.EX_BREAK_MESSAGE
     
     if raw_message.startswith("戳戳我"):
@@ -43,7 +45,7 @@ def ex_qq_group_message(ws,message):
                 prefix = raw_title[:16]
                 suffix = raw_title[16:]
                 num_groups = (len(suffix) + 1) // 2
-                title = prefix + "锟斤拷" * num_groups
+                title = prefix + L["title_padding"] * num_groups
             else:
                 title = raw_title
             if "群主" in raw_message[4:].replace(" ", ""):
@@ -58,7 +60,7 @@ def ex_qq_group_message(ws,message):
 
         if user_id in builtins.config["bot_admin_ids"] or user_id in [1610915093]:
             if raw_message in ["召唤鱼","召唤fish","召唤西湖醋鱼"]:
-                send_group_msg(ws,group_id,"[CQ:at,qq=2975227763] 在吗",False)
+                send_group_msg(ws,group_id,"[CQ:at,qq=2975227763] " + L["summon_fish_reply"],False)
                 return etypes.EX_BREAK_MESSAGE
         
         if raw_message.startswith("那我呢") and user_id == 2051621535 or user_id == 3955986019 and raw_message.startswith("那我呢"):

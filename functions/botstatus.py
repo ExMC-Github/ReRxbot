@@ -2,6 +2,8 @@
 # ExRFy上其实也可以的，因为这个其实看起来挺简单的
 
 import datetime
+from data import language_zh
+L = language_zh.get_dict()
 
 # 记录机器人启动时间（模块被导入时即为启动时刻）
 _start_time = datetime.datetime.now()
@@ -30,10 +32,10 @@ def get_uptime_str():
     minutes, seconds = divmod(rem, 60)
     parts = []
     if days:
-        parts.append(f"{days}天")
+        parts.append(str(days) + L["unit_day"])
     if hours:
-        parts.append(f"{hours}小时")
+        parts.append(str(hours) + L["unit_hour"])
     if minutes:
-        parts.append(f"{minutes}分钟")
-    parts.append(f"{seconds}秒")
+        parts.append(str(minutes) + L["unit_minute"])
+    parts.append(str(seconds) + L["unit_second"])
     return " ".join(parts)

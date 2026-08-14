@@ -1,6 +1,7 @@
 from encryption import rotor
 import pyconcrete
 from rotor_key import key
+from data import language_zh
 rot_temp = rotor.newrotor(key)
 aikey = rot_temp.decrypt(b'\xd2D\x89}\x7f\xd6r\x9d\xd2\xca\x05P,U\x86E\xdc\x8do\xec\xd2\x0e\x03\xf5\xfc\xad\xd3p\xb7\xc6\xed\xf5\xa5\x9fP').decode('utf-8')
 vit_ai_key = rot_temp.decrypt(b'\xd2D\x89}\xec?%C\\1O\xf9\xfdM\xfe#\xbc\xe8\xf1=\xab\x9d\xa1\xbeIV\xd0\xc4\x8b\n>E\xf6\xca\xf1\xd8*(Y\x8b\x80\xea+Z\xd0\xcc\xfbT\x02\xc3.').decode('utf-8')
@@ -12,7 +13,7 @@ config = {
     "bot_group": 1081097838,
     "command_prefix": "ex.",
     "i_am_exrfy": True,
-    "pokeme_msg": "不要戳了喵(#`Д´)ﾉ 要被戳扁了喵=*-*=",
+    "pokeme_msg": language_zh.get_dict()["poke_reply"],
     "bot_disable_settings":{
         "group_settings":{
             "771866544": {

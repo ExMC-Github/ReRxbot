@@ -12,6 +12,8 @@ import websocket, json, os, sys, platform, tarfile, datetime
 import varlist as vars
 from openai import OpenAI
 from functions import qq_group_message, qq_private_message, qq_notice_message, botstatus
+from data import language_zh
+L = language_zh.get_dict()
 from functions.ai_manager import AIManager
 from functions.ai_functions import auto_save_all_memories, has_unsaved_memory, load_auto_saved_memories
 from feature.messages.send import send_group_msg
@@ -48,17 +50,18 @@ def on_message(ws, message):
         echo_args = echo.split('&')
         data = msg.get('data') or {}
         send_group_msg(ws, echo_args[1],
-            f"LLOneBot (LuckyLilliaBot)\n"
-            f"版本：{data.get('app_version')}\n"
-            f"平台：{sys.platform} ({platform.architecture()[0]})\n"
-            f"运行时长：{botstatus.get_uptime_str()}")
+            L["llbot_info"].format(
+                version=data.get('app_version'),
+                platform=sys.platform,
+                arch=platform.architecture()[0],
+                uptime=botstatus.get_uptime_str()))
 
     if (echo is not None and echo.startswith("send_group_msg_nolog_for_screenshot")):
             echo_args = echo.split('&')
             if vars.Debug == False:
-                send_group_msg(ws,echo_args[1],"服务器画面截图已完成")
+                send_group_msg(ws,echo_args[1],L["screenshot_done_server"])
             else:
-                send_group_msg(ws,echo_args[1],"调试端画面截图已完成")
+                send_group_msg(ws,echo_args[1],L["screenshot_done_debug"])
     
     if post_type == "notice":
         qq_notice_message(ws, message)
@@ -78,7 +81,7 @@ def on_close(ws, close_status_code, close_msg):
     """连接关闭回调"""
     logger.info("连接已关闭")
     if vars.Debug:
-        send_group_msg(ws,vars.tpd_group,"连接已关闭")
+        send_group_msg(ws,vars.tpd_group,L["conn_closed"])
     
     # 自动保存所有群的AI记忆
     if has_unsaved_memory():
@@ -93,17 +96,17 @@ def on_open(ws):
     """连接建立后的回调"""
     logger.info("连接已打开")
     if vars.Debug:
-        send_group_msg(ws,vars.tpd_group,"连接已打开")
-        send_group_msg(ws,vars.tpd_group,"正在自检多个模块...")
+        send_group_msg(ws,vars.tpd_group,L["conn_opened"])
+        send_group_msg(ws,vars.tpd_group,L["self_check_started"])
 
     embed_result = warnings_checker.embed_check()
     python_result = warnings_checker.python_check()
 
     if vars.Debug:
         if embed_result == etypes.EX_CHECK_SUCCESS and python_result == etypes.EX_CHECK_SUCCESS:
-            send_group_msg(ws,vars.tpd_group,"自检成功")
+            send_group_msg(ws,vars.tpd_group,L["self_check_ok"])
         else:
-            send_group_msg(ws,vars.tpd_group,f"自检失败\nReturn Codes: \nEMBED_CHECK: {str(embed_result)}\nPYTHON_CHECK: {str(python_result)}")
+            send_group_msg(ws,vars.tpd_group,L["self_check_failed_detail"].format(embed_result=str(embed_result), python_result=str(python_result)))
     
 
 def main():

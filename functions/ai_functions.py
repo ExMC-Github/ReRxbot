@@ -9,6 +9,8 @@ import pickle
 import sys
 import html
 from loguru import logger
+from data import language_zh
+L = language_zh.get_dict()
 
 
 # 视觉模型客户端缓存（按AI类型隔离：ai / at / defined）
@@ -183,13 +185,13 @@ def analyze_image(image_url, config, client_type="ai"):
         图片的文字描述
     """
     if not config["ai_settings"].get('vit_enable', False):
-        return "[图片识别功能未启用]"
+        return L["image_recognition_disabled"]
     
     # 去除URL中的反引号（QQ消息中URL可能被反引号包裹）
     image_url = image_url.strip('`').strip()
     
     if not image_url:
-        return "[图片URL为空]"
+        return L["image_url_empty"]
     
     try:
         vit_client = get_vit_client(config, client_type)
@@ -217,7 +219,7 @@ def analyze_image(image_url, config, client_type="ai"):
         return description
     except Exception as e:
         logger.error(f"[{client_type}] 图片分析失败: {e}")
-        return f"[图片分析失败: {str(e)}]"
+        return L["image_analysis_failed"].format(err=str(e))
 
 
 def extract_image_descriptions(msg, config, client_type="ai"):
@@ -496,10 +498,10 @@ def web_fetch_url(tool_args, config):
     timeout = tool_args.get("timeout", 30)
     
     if not url:
-        return "错误：URL不能为空"
+        return L["web_fetch_url_empty"]
     
     if not url.startswith(("http://", "https://")):
-        return "错误：URL必须以http://或https://开头"
+        return L["web_fetch_url_invalid"]
     
     # 自定义User-Agent
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0 ReRxBot/2026.8.10"
@@ -599,29 +601,29 @@ def web_fetch_url(tool_args, config):
         
         # 限制返回内容长度
         if len(content) > max_length:
-            content = content[:max_length] + f"\n\n...（内容已截断，总长度约{len(response.text)}字符）"
+            content = content[:max_length] + L["web_fetch_truncated"].format(length=len(response.text))
         
         logger.info(f"web_fetch 访问成功，返回内容长度: {len(content)} 字符")
         return content
     
     except requests.exceptions.ProxyError as e:
         logger.error(f"web_fetch 代理错误: {e}")
-        return f"代理连接失败，请检查代理配置: {str(e)}"
+        return L["web_fetch_proxy_error"].format(err=str(e))
     except requests.exceptions.Timeout:
         logger.error(f"web_fetch 请求超时: {url}")
-        return f"请求超时（{timeout}秒），请稍后重试或检查URL是否可访问"
+        return L["web_fetch_timeout"].format(seconds=timeout)
     except requests.exceptions.ConnectionError as e:
         logger.error(f"web_fetch 连接错误: {e}")
-        return f"无法连接到服务器: {str(e)}"
+        return L["web_fetch_conn_error"].format(err=str(e))
     except requests.exceptions.HTTPError as e:
         logger.error(f"web_fetch HTTP错误: {e}")
-        return f"HTTP请求错误: {str(e)}"
+        return L["web_fetch_http_error"].format(err=str(e))
     except requests.exceptions.RequestException as e:
         logger.error(f"web_fetch 请求异常: {e}")
-        return f"请求失败: {str(e)}"
+        return L["web_fetch_request_failed"].format(err=str(e))
     except Exception as e:
         logger.error(f"web_fetch 未知错误: {e}")
-        return f"访问网页时发生未知错误: {str(e)}"
+        return L["web_fetch_unknown_error"].format(err=str(e))
 
 
 # ============ blacklist_files 文件访问保护 ============
@@ -897,9 +899,9 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
     try:
         # 检查该AI工具是否在本群被关闭（由 ex.dpsk.set 设置，仅内存生效）
         if not is_tool_enabled(group_id, tool_name):
-            feedback = get_tool_off_feedback(group_id, tool_name, f"本群已关闭AI工具 {tool_name}")
+            feedback = get_tool_off_feedback(group_id, tool_name, L["tool_disabled_feedback"].format(tool=tool_name))
             logger.info(f"AI工具 {tool_name} 在本群 {group_id} 已关闭，返回反馈")
-            return f"本群已关闭AI工具 {tool_name}：{feedback}"
+            return L["tool_disabled_feedback"].format(tool=tool_name) + "：" + feedback
         
         if tool_name == "mute":
             target_id = tool_args.get("user_id", user_id)
@@ -912,37 +914,37 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
             if group_id == builtins.config.get("bot_group"):
                 logger.info(f"执行工具 {tool_name} 成功: 禁言用户 {target_id} {duration} 秒")
                 set_group_ban(ws, group_id, target_id, duration)
-                return f"已禁言用户 {target_id} {duration} 秒"
+                return L["mute_success"].format(uid=target_id, duration=duration)
             else:
                 if group_id not in ignored_users:
                     ignored_users[group_id] = set()
                 ignored_users[group_id].add(target_id)
                 logger.info(f"执行工具 {tool_name} 成功: 在非机器人群 {group_id} 忽略用户 {target_id}")
-                return f"已忽略用户 {target_id}（非机器人群，AI将不再接收该用户的消息）"
+                return L["ignore_success"].format(uid=target_id)
         
         elif tool_name == "unmute":
             target_id = tool_args.get("user_id", user_id)
             if group_id == builtins.config.get("bot_group"):
                 set_group_ban(ws, group_id, target_id, 0)
                 logger.info(f"执行工具 {tool_name} 成功: 解除禁言用户 {target_id}")
-                return f"已解除禁言用户 {target_id}"
+                return L["unmute_success"].format(uid=target_id)
             else:
                 if group_id in ignored_users and target_id in ignored_users[group_id]:
                     ignored_users[group_id].discard(target_id)
                     logger.info(f"执行工具 {tool_name} 成功: 取消忽略用户 {target_id}")
-                    return f"已取消忽略用户 {target_id}（AI将重新接收该用户的消息）"
+                    return L["unignore_success"].format(uid=target_id)
                 else:
-                    return f"用户 {target_id} 未被忽略，无需操作"
+                    return L["not_ignored"].format(uid=target_id)
         
         elif tool_name == "filedir":
             path = tool_args.get("path", ".")
             if not os.path.exists(path):
-                return f"路径不存在: {path}"
+                return L["path_not_found"].format(path=path)
             
             try:
                 items = os.listdir(path)
                 blacklist_norm = _get_blacklist_norm(builtins.config)
-                result_lines = [f"目录 {path} 的内容:"]
+                result_lines = [L["filedir_header"].format(path=path)]
                 for item in items:
                     # 过滤 blacklist_files 黑名单文件，不让AI发现它们
                     if blacklist_norm and _is_blacklisted(item, blacklist_norm):
@@ -954,19 +956,19 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
                         result_lines.append(f"📄 {item}")
                 return "\n".join(result_lines)
             except PermissionError:
-                return f"无权限访问目录: {path}"
+                return L["filedir_no_permission"].format(path=path)
             except Exception as e:
-                return f"列出目录失败: {str(e)}"
+                return L["filedir_failed"].format(err=str(e))
         
         elif tool_name == "execute_code":
             # 鉴权：非管理员直接拒绝，不弹窗
             if user_id not in builtins.config["bot_admin_ids"]:
                 logger.warning(f"执行工具 {tool_name} 失败: 用户 {user_id} 无权限（非管理员）")
-                return "Permission Denied: 仅机器人管理员可执行代码"
+                return L["exec_code_permission_denied"]
             
             code = tool_args.get("code", "")
             if not code:
-                return "代码内容为空，未执行"
+                return L["code_empty"]
 
             # 纵深防御：代码文本中引用 blacklist_files 黑名单文件名时直接拒绝
             blacklist_norm = _get_blacklist_norm(builtins.config)
@@ -978,20 +980,19 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
                 if hit_entries:
                     logger.warning(
                         f"执行工具 execute_code 失败: 代码引用了blacklist_files黑名单文件 {hit_entries}")
-                    return (f"Permission Denied: 代码引用了blacklist_files黑名单文件"
-                            f"（{', '.join(hit_entries)}），已拒绝执行")
+                    return L["code_blacklist_refused"].format(files=', '.join(hit_entries))
             
             approved, final_code, timed_out, extra_content = review_and_execute_code(code)
             
             if timed_out:
                 logger.warning(f"执行工具 {tool_name}: 代码审核超时（30秒未操作）")
-                return "代码审核超时（30秒内未操作），未执行代码"
+                return L["code_review_timeout"]
             
             if not approved:
                 logger.info(f"执行工具 {tool_name}: 代码审核被拒绝")
-                reject_msg = "代码审核被拒绝（用户选择不执行），未执行代码"
+                reject_msg = L["code_review_rejected"]
                 if extra_content:
-                    reject_msg = f"{reject_msg}\n\n[附加内容]\n{extra_content}"
+                    reject_msg = reject_msg + "\n\n" + L["extra_content_marker"] + "\n" + extra_content
                 return reject_msg
             
             logger.info(f"执行工具 {tool_name}: 代码审核通过，开始执行")
@@ -999,7 +1000,7 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
             logger.info(f"执行工具 {tool_name}: 代码执行完成")
             
             if extra_content:
-                result = f"{result}\n\n[附加内容]\n{extra_content}"
+                result = result + "\n\n" + L["extra_content_marker"] + "\n" + extra_content
             return result
         
         elif tool_name == "web_fetch":
@@ -1011,7 +1012,7 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
     
     except Exception as e:
         logger.error(f"执行工具 {tool_name} 失败: {e}")
-        return f"执行工具 {tool_name} 失败: {str(e)}"
+        return L["tool_exec_failed"].format(tool=tool_name, err=str(e))
 
 
 def review_and_execute_code(code):
@@ -1096,15 +1097,15 @@ def execute_python_code(code):
                 result = "[stderr]\n" + proc.stderr
 
         if not result.strip():
-            result = "代码执行完成（无输出）"
+            result = L["code_exec_no_output"]
 
         return result
 
     except subprocess.TimeoutExpired:
-        return "代码执行超时（60秒）"
+        return L["code_exec_timeout"]
     except Exception as e:
         tb = traceback.format_exc()
-        return f"代码执行出错:\n{tb}"
+        return L["code_exec_error"].format(tb=tb)
 
 
 def process_tool_calls(ws, group_id, message, user_id, ai_client, conversation_history):
@@ -1214,15 +1215,15 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         
         # 发送回复：由AI自己决定分段，分段时以合并转发发送,不添加回复和@
         if assistant_reply:
-            if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id, "杨诺轩"):
+            if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id, L["forward_name_defined"]):
                 # 普通消息,添加回复和@,关闭auto_escape
                 reply_message = f"[CQ:reply,id={message_id}][CQ:at,qq={user_id}] {assistant_reply}"
                 send_group_msg(ws, group_id, reply_message, auto_escape=False)
     
     except Exception as e:
-        error_msg = f"DeepSeek API 调用出错: {str(e)}"
+        error_msg = L["defined_api_error"].format(err=str(e))
         logger.error(error_msg)
-        send_group_single_forward_msg(ws, group_id, self_id, "DeepSeek 错误", error_msg)
+        send_group_single_forward_msg(ws, group_id, self_id, L["defined_error_node_name"], error_msg)
         if group_id in defined_conversation_history and defined_conversation_history[group_id][-1]["role"] == "user":
             defined_conversation_history[group_id].pop()
     finally:
@@ -1308,13 +1309,13 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
         if assistant_reply:
             if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id,
                                                config["ai_settings"]['ai_name'],
-                                               footer="\n\n（以上内容由AI生成，仅供参考）"):
-                send_group_msg(ws, group_id, assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
+                                               footer="\n\n" + L["ai_disclaimer"]):
+                send_group_msg(ws, group_id, assistant_reply + "\n\n" + L["ai_disclaimer"])
     
     except Exception as e:
-        error_msg = f"{config['ai_settings']['ai_name']} API 调用出错: {str(e)}"
+        error_msg = L["ai_api_error"].format(ai_name=config['ai_settings']['ai_name'], err=str(e))
         logger.error(error_msg)
-        send_group_single_forward_msg(ws, group_id, self_id, f"{config['ai_settings']['ai_name']} 错误", error_msg)
+        send_group_single_forward_msg(ws, group_id, self_id, L["ai_error_node_name"].format(ai_name=config['ai_settings']['ai_name']), error_msg)
         if group_id in ai_conversation_history and ai_conversation_history[group_id][-1]["role"] == "user":
             ai_conversation_history[group_id].pop()
     finally:
@@ -1391,13 +1392,13 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
         if assistant_reply:
             if not send_group_msg_ai_segmented(ws, group_id, assistant_reply, self_id,
                                                config["ai_settings"]['ai_name'],
-                                               footer="\n\n（以上内容由AI生成，仅供参考）"):
-                send_group_msg(ws, group_id, assistant_reply + "\n\n（以上内容由AI生成，仅供参考）")
+                                               footer="\n\n" + L["ai_disclaimer"]):
+                send_group_msg(ws, group_id, assistant_reply + "\n\n" + L["ai_disclaimer"])
     
     except Exception as e:
-        error_msg = f"{config['ai_settings']['ai_name']} API 调用出错: {str(e)}"
+        error_msg = L["ai_api_error"].format(ai_name=config['ai_settings']['ai_name'], err=str(e))
         logger.error(error_msg)
-        send_group_single_forward_msg(ws, group_id, self_id, f"{config['ai_settings']['ai_name']} 错误", error_msg)
+        send_group_single_forward_msg(ws, group_id, self_id, L["ai_error_node_name"].format(ai_name=config['ai_settings']['ai_name']), error_msg)
         if group_id in at_ai_conversation_history and at_ai_conversation_history[group_id][-1]["role"] == "user":
             at_ai_conversation_history[group_id].pop()
     finally:
@@ -1421,24 +1422,24 @@ def handle_ai_tool_set(ws, group_id, raw_message, config, user_id):
 
     # 非管理员拒绝
     if user_id not in config.get("bot_admin_ids", []):
-        send_group_msg(ws, group_id, "仅机器人管理员可以使用 ex.dpsk.set 命令", True)
+        send_group_msg(ws, group_id, L["tool_set_permission_denied"], True)
         return
 
     # 查看本群工具状态
     if not arg_str or arg_str.lower() in ("list", "status"):
-        lines = ["本群AI工具状态（仅内存，重启后重置）:"]
+        lines = [L["tool_status_header"]]
         group_settings = group_ai_tool_settings.get(str(group_id), {})
         if not group_settings:
-            lines.append("  所有工具均为默认启用状态")
+            lines.append(L["tool_status_all_default"])
         else:
             for tool_name in AI_TOOL_NAMES:
                 setting = group_settings.get(tool_name)
                 if setting is None:
-                    lines.append(f"  {tool_name}: 启用")
+                    lines.append("  " + tool_name + ": " + L["tool_enabled_state"])
                 else:
-                    state = "启用" if setting.get("enabled", True) else "关闭"
+                    state = L["tool_enabled_state"] if setting.get("enabled", True) else L["tool_disabled_state"]
                     feedback = setting.get("off_feedback", "")
-                    lines.append(f"  {tool_name}: {state}" + (f"（反馈: {feedback}）" if feedback else ""))
+                    lines.append("  " + tool_name + ": " + state + (L["tool_feedback_suffix"].format(feedback=feedback) if feedback else ""))
         send_group_msg(ws, group_id, "\n".join(lines), True)
         return
 
@@ -1451,13 +1452,13 @@ def handle_ai_tool_set(ws, group_id, raw_message, config, user_id):
     # 校验工具名
     if tool_name not in AI_TOOL_NAMES:
         send_group_msg(ws, group_id,
-                       f"未知的AI工具: {tool_name}\n可用工具: {', '.join(AI_TOOL_NAMES.keys())}", True)
+                       L["tool_unknown"].format(tool=tool_name, tools=', '.join(AI_TOOL_NAMES.keys())), True)
         return
 
     # 校验状态
     if status not in ("on", "off"):
         send_group_msg(ws, group_id,
-                       "状态参数无效，请输入 on 或 off\n用法: ex.dpsk.set <工具名> <on|off> [关闭反馈]", True)
+                       L["tool_status_invalid"], True)
         return
 
     # 写入内存（不保存到config）
@@ -1465,12 +1466,12 @@ def handle_ai_tool_set(ws, group_id, raw_message, config, user_id):
     if status == "on":
         # 切换到on状态不需要关闭反馈，同时清空之前的反馈文案
         group_settings[tool_name] = {"enabled": True, "off_feedback": ""}
-        send_group_msg(ws, group_id, f"已启用本群的AI工具 {tool_name}", True)
+        send_group_msg(ws, group_id, L["tool_enabled"].format(tool=tool_name), True)
     else:
         group_settings[tool_name] = {"enabled": False, "off_feedback": feedback}
-        reply = f"已关闭本群的AI工具 {tool_name}"
+        reply = L["tool_disabled"].format(tool=tool_name)
         if feedback:
-            reply += f"，关闭反馈: {feedback}"
+            reply += L["tool_off_feedback"].format(feedback=feedback)
         send_group_msg(ws, group_id, reply, True)
 
     logger.info(f"群 {group_id} 设置AI工具 {tool_name} = {status}（关闭反馈: {feedback}）")
@@ -1522,11 +1523,11 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     # 处理defined命令(使用defined.txt提示词)
     if raw_message.startswith("defined "):
         if not is_tool_enabled(group_id, "defined"):
-            feedback = get_tool_off_feedback(group_id, "defined", "本群已关闭 defined 对话功能")
+            feedback = get_tool_off_feedback(group_id, "defined", L["defined_disabled_feedback"])
             send_group_msg(ws, group_id, feedback, True)
             return
         if group_id in defined_threads and defined_threads[group_id].is_alive():
-            send_group_msg(ws, group_id, f"本群已有defined对话正在进行，请等待完成后再试", True)
+            send_group_msg(ws, group_id, L["defined_busy"], True)
         else:
             pass
             # 使用defined提示词创建worker
@@ -1540,13 +1541,13 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
     # 处理原有的ex.dpsk命令
     elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']} "):
         if not is_tool_enabled(group_id, "dpsk"):
-            feedback = get_tool_off_feedback(group_id, "dpsk", f"本群已关闭 {config['ai_settings']['ai_name']} 对话功能")
+            feedback = get_tool_off_feedback(group_id, "dpsk", L["ai_disabled_feedback"].format(ai_name=config['ai_settings']['ai_name']))
             send_group_msg(ws, group_id, feedback, True)
             return
         if group_id in ai_threads and ai_threads[group_id].is_alive():
-            send_group_msg(ws, group_id, f"本群已有 {config['ai_settings']['ai_name']} 对话正在进行，请等待完成后再试", True)
+            send_group_msg(ws, group_id, L["ai_busy"].format(ai_name=config['ai_settings']['ai_name']), True)
         else:
-            send_group_msg(ws, group_id, "AI正在处理您的问题，请稍后...", True)
+            send_group_msg(ws, group_id, L["ai_processing"], True)
             thread = threading.Thread(
                 target=ai_worker,
                 args=(ws, group_id, msg, config, ai_client, self_id, ai_manager)
@@ -1560,18 +1561,18 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             rule_file = _get_rule_file(config, "normal")
             system_prompt = ai_manager.get_rule(rule_file.replace('.txt', ''))
             ai_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
-            send_group_msg(ws, group_id, f"已重置当前群的 {config['ai_settings']['ai_name']} 对话历史。", True)
+            send_group_msg(ws, group_id, L["ai_reset_done"].format(ai_name=config['ai_settings']['ai_name']), True)
         else:
-            send_group_msg(ws, group_id, f"当前群没有活跃的 {config['ai_settings']['ai_name']} 对话历史，无需重置。", True)
+            send_group_msg(ws, group_id, L["ai_reset_none"].format(ai_name=config['ai_settings']['ai_name']), True)
     
     elif is_at_me and (at_full_text or any(seg.get("type") == "image" for seg in msg.get("message", []))):
         if config["ai_settings"].get('at_ai_enable', False):
             if not is_tool_enabled(group_id, "at"):
-                feedback = get_tool_off_feedback(group_id, "at", f"本群已关闭被@触发的 {config['ai_settings']['ai_name']} 对话")
+                feedback = get_tool_off_feedback(group_id, "at", L["at_ai_disabled_feedback"].format(ai_name=config['ai_settings']['ai_name']))
                 send_group_msg(ws, group_id, feedback, True)
                 return
             if group_id in at_ai_threads and at_ai_threads[group_id].is_alive():
-                send_group_msg(ws, group_id, f"本群已有 {config['ai_settings']['ai_name']} 对话（被@触发）正在进行，请等待完成后再试", True)
+                send_group_msg(ws, group_id, L["at_ai_busy"].format(ai_name=config['ai_settings']['ai_name']), True)
             else:
                 thread = threading.Thread(
                     target=at_ai_worker,
@@ -1586,9 +1587,9 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             rule_file = _get_rule_file(config, "at")
             system_prompt = ai_manager.get_rule(rule_file.replace('.txt', ''))
             at_ai_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
-            send_group_msg(ws, group_id, f"已重置当前群的 {config['ai_settings']['ai_name']} At 对话历史。", True)
+            send_group_msg(ws, group_id, L["at_ai_reset_done"].format(ai_name=config['ai_settings']['ai_name']), True)
         else:
-            send_group_msg(ws, group_id, f"当前群没有活跃的 {config['ai_settings']['ai_name']} At 对话历史，无需重置。", True)
+            send_group_msg(ws, group_id, L["at_ai_reset_none"].format(ai_name=config['ai_settings']['ai_name']), True)
     
     elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.defined.reset":
         if group_id in defined_conversation_history:
@@ -1597,9 +1598,9 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
             rule_file = rules_defined.get('defined', 'defined.txt')
             system_prompt = ai_manager.get_rule(rule_file.replace('.txt', ''))
             defined_conversation_history[group_id] = [{"role": "system", "content": system_prompt}]
-            send_group_msg(ws, group_id, f"已重置当前群的 defined 对话历史。", True)
+            send_group_msg(ws, group_id, L["defined_reset_done"], True)
         else:
-            send_group_msg(ws, group_id, f"当前群没有活跃的 defined 对话历史，无需重置。", True)
+            send_group_msg(ws, group_id, L["defined_reset_none"], True)
     
     elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.save "):
         # 保存AI记忆 ex.dpsk.save 记忆名称
@@ -1607,11 +1608,11 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
         if memory_name:
             success, result = save_group_memory(group_id, memory_name, config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
             if success:
-                send_group_msg(ws, group_id, f"已保存 {config['ai_settings']['ai_name']} 对话记忆: {result}", True)
+                send_group_msg(ws, group_id, L["memory_save_done"].format(ai_name=config['ai_settings']['ai_name'], result=result), True)
             else:
-                send_group_msg(ws, group_id, f"保存 {config['ai_settings']['ai_name']} 对话记忆失败: {result}", True)
+                send_group_msg(ws, group_id, L["memory_save_failed"].format(ai_name=config['ai_settings']['ai_name'], result=result), True)
         else:
-            send_group_msg(ws, group_id, f"请指定记忆名称，例如: {config['command_prefix']}{config['ai_settings']['ai_shortname']}.save my_memory", True)
+            send_group_msg(ws, group_id, L["memory_name_required"].format(example=config['command_prefix'] + config['ai_settings']['ai_shortname'] + ".save my_memory"), True)
     
     elif raw_message.startswith(f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.load "):
         # 加载AI记忆 ex.dpsk.load 记忆名称
@@ -1619,20 +1620,20 @@ def handle_ai_commands(ws, raw_message, group_id, msg, config, ai_client, self_i
         if memory_name:
             success, result = load_group_memory(group_id, memory_name, config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
             if success:
-                send_group_msg(ws, group_id, f"已加载 {config['ai_settings']['ai_name']} 对话记忆: {result}", True)
+                send_group_msg(ws, group_id, L["memory_load_done"].format(ai_name=config['ai_settings']['ai_name'], result=result), True)
             else:
-                send_group_msg(ws, group_id, f"加载 {config['ai_settings']['ai_name']} 对话记忆失败: {result}", True)
+                send_group_msg(ws, group_id, L["memory_load_failed"].format(ai_name=config['ai_settings']['ai_name'], result=result), True)
         else:
-            send_group_msg(ws, group_id, f"请指定记忆名称，例如: {config['command_prefix']}{config['ai_settings']['ai_shortname']}.load my_memory", True)
+            send_group_msg(ws, group_id, L["memory_name_required"].format(example=config['command_prefix'] + config['ai_settings']['ai_shortname'] + ".load my_memory"), True)
     
     elif raw_message == f"{config['command_prefix']}{config['ai_settings']['ai_shortname']}.list":
         # 列出当前群的记忆列表
         memories = list_group_memories(group_id, config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
         if memories:
             memory_list = "\n".join([f"• {mem}" for mem in memories])
-            send_group_msg(ws, group_id, f"当前群的 {config['ai_settings']['ai_name']} 记忆列表:\n{memory_list}", True)
+            send_group_msg(ws, group_id, L["memory_list_header"].format(ai_name=config['ai_settings']['ai_name'], memory_list=memory_list), True)
         else:
-            send_group_msg(ws, group_id, f"当前群没有保存的 {config['ai_settings']['ai_name']} 记忆。", True)
+            send_group_msg(ws, group_id, L["memory_list_empty"].format(ai_name=config['ai_settings']['ai_name']), True)
 
 
 def sanitize_filename(filename):
@@ -1676,7 +1677,7 @@ def save_group_memory(group_id, memory_name=None, memory_dir="ai_memory", auto_s
                 'defined_conversation_history': defined_conversation_history.get(group_id, [])
             }
         else:
-            return False, "无效的记忆类型"
+            return False, L["memory_type_invalid"]
         
         # 生成文件名
         if auto_save:
@@ -1689,7 +1690,7 @@ def save_group_memory(group_id, memory_name=None, memory_dir="ai_memory", auto_s
                 memory_name = sanitize_filename(memory_name)
                 filename = f"{group_id}_{memory_name}.dat"
             else:
-                return False, "记忆名称不能为空"
+                return False, L["memory_name_empty"]
         
         # 压缩数据
         compressed_data = _compress_data(data)
@@ -1747,7 +1748,7 @@ def load_group_memory(group_id, memory_name, memory_dir="ai_memory", config=None
         if os.path.exists(memory_file):
             with open(memory_file, 'rb') as f:
                 compressed_data = f.read()
-            source = "本地"
+            source = L["memory_source_local"]
         # 本地没有，尝试从 boto3 恢复
         elif config and _is_boto3_backup_enabled(config):
             try:
@@ -1756,7 +1757,7 @@ def load_group_memory(group_id, memory_name, memory_dir="ai_memory", config=None
                 s3_key = f"memories/{filename}"
                 response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
                 compressed_data = response['Body'].read()
-                source = "S3备份"
+                source = L["memory_source_s3"]
                 logger.info(f"群 {group_id} 从 S3 恢复记忆: {s3_key}")
                 
                 # 同时保存到本地，便于下次快速加载
@@ -1769,7 +1770,7 @@ def load_group_memory(group_id, memory_name, memory_dir="ai_memory", config=None
                 logger.warning(f"从 S3 加载记忆失败: {e}")
         
         if compressed_data is None:
-            return False, f"记忆文件不存在: {memory_name}"
+            return False, L["memory_file_not_found"].format(name=memory_name)
         
         # 解压数据
         data = _decompress_data(compressed_data)
@@ -1779,7 +1780,7 @@ def load_group_memory(group_id, memory_name, memory_dir="ai_memory", config=None
         at_ai_conversation_history[group_id] = data.get('at_ai_conversation_history', [])
         
         logger.info(f"群 {group_id} AI记忆已从{source}加载")
-        return True, f"已加载记忆: {memory_name}（来自{source}）"
+        return True, L["memory_loaded"].format(name=memory_name, source=source)
     
     except Exception as e:
         logger.error(f"加载群 {group_id} AI记忆失败: {e}")

@@ -1,5 +1,7 @@
 # 在受限命名空间中执行代码并捕获标准输出/异常
 import traceback
+from data import language_zh
+L = language_zh.get_dict()
 
 
 def exec_and_capture(code: str,sys,io,traceback,ws,group_id=None,self_id=None,user_id=None,msg=None) -> str:
@@ -43,7 +45,7 @@ def lua_exec_and_capture(code: str) -> str:
     try:
         from lupa import LuaRuntime
     except ImportError:
-        return traceback.format_exc(limit=1) + "\n请先安装 lupa：pip install lupa"
+        return traceback.format_exc(limit=1) + "\n" + L["lupa_install_hint"]
 
     output_lines = []
 
