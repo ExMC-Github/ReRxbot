@@ -43,20 +43,20 @@ def _select_name():
 def _load_language(mod):
     """加载语言字典。
 
-    自动执行 mod.vaild()（crc32 校验）：通过才返回真实字典；
+    自动执行 mod.verify_bin_str()（crc32 校验）：通过才返回真实字典；
     校验失败或加载异常时，返回键齐全、值全为空字符串的字典
     （静默降级，避免调用方 KeyError）。
     """
     if mod is None:
         return {}
-    if mod.vaild():
+    if mod.verify_bin_str():
         try:
-            return mod.get_dict()
+            return mod.data
         except Exception:
             pass
     for candidate in _LANGUAGES.values():
         try:
-            keys = candidate.get_dict().keys()
+            keys = candidate.data.keys()
         except Exception:
             continue
         return {key: "" for key in keys}
