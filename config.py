@@ -27,7 +27,7 @@ config = {
         "ai_key": aikey,
         "ai_name": "DeepSeek",
         "ai_shortname": "dpsk",
-        "ai_model": "deepseek-v4-pro",
+        "ai_model": "deepseek-v4-flash",
         "ai_timeout_retry": 2,
         "at_ai_enable": True,
         "ai_owner_group_future_mode": True,
@@ -57,4 +57,4 @@ config = {
         "blacklist_files": ["rotor_key.py", "rotor_key.pye"]
     }
 }
-del aikey, vit_ai_key, boto3_secret_key
+del aikey, vit_ai_key, boto3_secret_key, boto3_access_key
