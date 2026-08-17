@@ -172,13 +172,14 @@ def get_vit_client(config, client_type="ai"):
     return _vit_clients[client_type]
 
 
-def analyze_image(image_url, config, client_type="ai"):
+def analyze_image(image_url, config, client_type="ai", prompt=None):
     """分析单张图片并返回文字描述
     
     Args:
-        image_url: 图片URL
+        image_url: 图片URL（支持 http(s) 链接或 data:image/...;base64 数据URL）
         config: 配置字典
         client_type: AI类型（"ai" / "at" / "defined"），用于隔离视觉客户端
+        prompt: 自定义分析提示词，不指定时使用配置中的 vit_prompt
         
     Returns:
         图片的文字描述
@@ -194,7 +195,7 @@ def analyze_image(image_url, config, client_type="ai"):
     
     try:
         vit_client = get_vit_client(config, client_type)
-        prompt = config["ai_settings"].get('vit_prompt', '用中文尽可能详细地描述这张图片')
+        analysis_prompt = (prompt or "").strip() or config["ai_settings"].get('vit_prompt', '用中文尽可能详细地描述这张图片')
         response = vit_client.chat.completions.create(
             model=config["ai_settings"].get('vit_model', 'gemini-3-flash-preview'),
             messages=[{
@@ -206,7 +207,7 @@ def analyze_image(image_url, config, client_type="ai"):
                     },
                     {
                         "type": "text",
-                        "text": prompt
+                        "text": analysis_prompt
                     }
                 ]
             }],
@@ -325,6 +326,26 @@ def get_reply_message_text(msg, ws, timeout=3.0, config=None, client_type="ai"):
     return f"[引用消息] {sender_nickname}: {reply_text}"
 
 
+# AI输入过滤：以下词汇在发送给AI前会被视为空字符串（替换为""）
+AI_INPUT_FILTER_WORDS = ("滚木",)
+
+
+def filter_ai_input(text):
+    """过滤发送给AI的用户输入，将过滤词视为空字符串
+
+    Args:
+        text: 原始用户输入文本
+
+    Returns:
+        过滤后的文本
+    """
+    if not text:
+        return text
+    for word in AI_INPUT_FILTER_WORDS:
+        text = text.replace(word, "")
+    return text
+
+
 # 存储每个群的对话历史
 ai_conversation_history = {}
 ai_threads = {}
@@ -351,6 +372,7 @@ AI_TOOL_NAMES = {
     "filedir": "AI目录浏览工具",
     "execute_code": "AI代码执行工具",
     "web_fetch": "AI网页访问工具",
+    "take_server_screenshot": "AI服务器截图工具",
 }
 
 
@@ -474,6 +496,23 @@ def get_available_tools():
                         }
                     },
                     "required": ["url"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "take_server_screenshot",
+                "description": "截取服务器当前画面，并交给视觉模型(Gemini)分析，返回截图内容的文字描述。截图失败（如未接入显示器）或视觉分析不可用时会返回错误信息。仅机器人管理员可使用。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "对截图内容的分析要求，不指定时使用默认分析提示词"
+                        }
+                    },
+                    "required": []
                 }
             }
         }
@@ -1005,6 +1044,38 @@ def execute_tool_call(ws, group_id, tool_name, tool_args, user_id):
         elif tool_name == "web_fetch":
             return web_fetch_url(tool_args, builtins.config)
         
+        elif tool_name == "take_server_screenshot":
+            # 鉴权：非管理员直接拒绝（与 execute_code / peekserver 一致）
+            if user_id not in builtins.config["bot_admin_ids"]:
+                logger.warning(f"执行工具 {tool_name} 失败: 用户 {user_id} 无权限（非管理员）")
+                return L["screenshot_tool_permission_denied"]
+            
+            # 截取服务器画面（含错误反馈：未接入显示器/无桌面会话等）
+            import io as _io
+            import base64 as _base64
+            try:
+                from PIL import ImageGrab
+                screenshot = ImageGrab.grab()
+            except Exception as e:
+                logger.error(f"执行工具 {tool_name} 截图失败: {e}")
+                return L["screenshot_tool_failed"].format(err=str(e))
+            
+            # 编码为 base64 数据URL
+            try:
+                img_bytes = _io.BytesIO()
+                screenshot.save(img_bytes, format='PNG')
+                base64_str = _base64.b64encode(img_bytes.getvalue()).decode('utf-8')
+                data_url = f"data:image/png;base64,{base64_str}"
+            except Exception as e:
+                logger.error(f"执行工具 {tool_name} 图片编码失败: {e}")
+                return L["screenshot_tool_failed"].format(err=str(e))
+            
+            # 交给视觉模型(Gemini)分析
+            custom_prompt = tool_args.get("prompt", "")
+            description = analyze_image(data_url, builtins.config, "ai", prompt=custom_prompt)
+            logger.info(f"执行工具 {tool_name} 完成，分析结果长度: {len(description)}")
+            return L["screenshot_tool_result"].format(result=description)
+        
         else:
             logger.warning(f"执行工具 {tool_name} 失败: 未知工具")
             return f"Unknown Tool"
@@ -1164,6 +1235,9 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     if reply_content:
         user_input = f"{reply_content}\n{user_input}" if user_input.strip() else reply_content
     
+    # 过滤AI输入（过滤词视为空字符串，如"滚木"）
+    user_input = filter_ai_input(user_input)
+    
     # 构建额外的提示信息
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']}"
     
@@ -1255,6 +1329,9 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
     if reply_content:
         user_input = f"{reply_content}\n{user_input}" if user_input.strip() else reply_content
     
+    # 过滤AI输入（过滤词视为空字符串，如"滚木"）
+    user_input = filter_ai_input(user_input)
+    
     # 构建额外的提示信息
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     
@@ -1344,6 +1421,9 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
     reply_content = get_reply_message_text(original_msg, ws, config=config, client_type="at")
     if reply_content:
         user_input = f"{reply_content}\n{user_input}" if user_input.strip() else reply_content
+    
+    # 过滤AI输入（过滤词视为空字符串，如"滚木"）
+    user_input = filter_ai_input(user_input)
     
     ai_append_words = f"当前提问者QQ号为{user_id} | 提问者名字为{nickname} | bot管理员是{config['bot_admin_ids']} | 当前时间是{datetime.datetime.now()}"
     

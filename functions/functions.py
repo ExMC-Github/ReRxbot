@@ -8,6 +8,7 @@ from feature.messages.send import send_group_msg, send_group_msg_nolog_for_scree
 from feature.utils.exec_and_capture import exec_and_capture, lua_exec_and_capture
 from feature.group_manage.status import get_version_info, get_llbot_info
 from .exrfys_functions import ex_qq_group_message
+from .languages_choicer import L
 from . import etypes
 import builtins
 
@@ -65,12 +66,17 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
 
     if raw_message == 'peekserver' or raw_message == f'{builtins.config["command_prefix"]}peekserver':
             if user_id in builtins.config["bot_admin_ids"]:
-                screenshot = ImageGrab.grab()
-                img_bytes = io.BytesIO()
-                screenshot.save(img_bytes, format='PNG')
-                img_bytes = img_bytes.getvalue()
-                base64_str = base64.b64encode(img_bytes).decode('utf-8')
-                send_group_msg_nolog_for_screenshot(ws,group_id,f'[CQ:image,file=base64://{base64_str}]',False)
+                try:
+                    screenshot = ImageGrab.grab()
+                    img_bytes = io.BytesIO()
+                    screenshot.save(img_bytes, format='PNG')
+                    img_bytes = img_bytes.getvalue()
+                    base64_str = base64.b64encode(img_bytes).decode('utf-8')
+                    send_group_msg_nolog_for_screenshot(ws,group_id,f'[CQ:image,file=base64://{base64_str}]',False)
+                except Exception as e:
+                    # 截图失败反馈（如未接入显示器/无桌面会话）
+                    logger.error(f"peekserver 截图失败: {e}")
+                    send_group_msg(ws, group_id, L["screenshot_failed"].format(err=str(e)), True)
             else:
                 send_group_msg(ws,group_id,"PermissionError: Not in \"builtins.config[\"bot_admin_ids\"]\"")
 
@@ -90,6 +96,8 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
     
     if ai_client and ai_manager:
         from . import ai_functions
+        raw_message = raw_message.replace("滚木","")
+        
         ai_functions.handle_ai_commands(
             ws, raw_message, group_id, msg, builtins.config, 
             ai_client, self_id, is_at_me, at_full_text, ai_manager
