@@ -132,52 +132,108 @@ def _get_nickname(ws, user_id, group_id=None):
     return str(user_id)
 
 
+def _is_new_message_line(line):
+    """判断一行是否为新消息行：前20字符内存在未转义的冒号
+
+    \\: 表示消息内容里的字面冒号，不参与分隔判断。
+    """
+    i = 0
+    n = len(line)
+    limit = min(20, n)
+    while i < limit:
+        ch = line[i]
+        if ch == "\\" and i + 1 < n and line[i + 1] == ":":
+            i += 2
+            continue
+        if ch == ":":
+            return True
+        i += 1
+    return False
+
+
+def _split_first_colon(line):
+    """按第一个未转义的冒号分割一行，返回 (QQ部分, 冒号后内容)
+
+    没有未转义冒号时返回 (None, None)。
+    """
+    i = 0
+    n = len(line)
+    while i < n:
+        ch = line[i]
+        if ch == "\\" and i + 1 < n and line[i + 1] == ":":
+            i += 2
+            continue
+        if ch == ":":
+            return line[:i].strip(), line[i + 1:]
+        i += 1
+    return None, None
+
+
 def _handle_fake_msg(ws, group_id, raw_message):
     """处理 ex.fake_msg 命令：伪造聊天记录并以合并转发形式发送
 
     用法:
         ex.fake_msg
-        QQ号1: 内容1
-        QQ号2: 内容2
+        QQ号1: 第一行内容
+        续行内容（前20字符内没有冒号即视为续行，合并为同一条消息）
+        QQ号2: 新消息
 
-    第一行是命令，后续每行（换行即消息分段标记）是一条消息节点；
-    每行按第一个冒号分割为 QQ号 和 消息内容，显示名称优先通过
-    get_stranger_info 获取，失败时回退 get_group_member_info（群名片/群内昵称），
+    以 "QQ号: 内容" 开头的行开始一条新消息；其后的行若前20字符内
+    不含未转义的冒号，则作为上一条消息的续行（以换行连接）；
+    内容中的冒号可用 \\: 表示。显示名称优先通过 get_stranger_info
+    获取，失败时回退 get_group_member_info（群名片/群内昵称），
     仍失败则回退为QQ号。
     """
     prefix = f"{builtins.config['command_prefix']}fake_msg"
     body = raw_message[len(prefix):].strip()
     if not body:
-        send_group_msg(ws, group_id, "用法: ex.fake_msg\\nQQ号: 内容\\nQQ号: 内容", True)
+        send_group_msg(ws, group_id, "用法: ex.fake_msg\\nQQ号: 内容（续行自动合并，\\: 表示冒号）", True)
         return
 
     nodes = []
     errors = []
+    name_cache = {}
+    cur = None  # 当前累积的消息: {"qq": str, "parts": [str]}
+
+    def flush():
+        nonlocal cur
+        if cur is None:
+            return
+        qq_str = cur["qq"]
+        if qq_str not in name_cache:
+            name_cache[qq_str] = _get_nickname(ws, int(qq_str), group_id)
+        nodes.append({
+            "type": "node",
+            "data": {
+                "uin": int(qq_str),
+                "name": name_cache[qq_str],
+                "content": [{"type": "text", "data": {"text": "\n".join(cur["parts"])}}]
+            }
+        })
+        cur = None
+
     for line in body.split("\n"):
         line = line.strip()
         if not line:
             continue
-        if ":" not in line:
-            errors.append(f"格式错误（缺少冒号）: {line}")
-            continue
-        qq_str, content = line.split(":", 1)
-        qq_str = qq_str.strip()
-        content = content.strip()
-        if not qq_str.isdigit():
-            errors.append(f"无效QQ号: {qq_str}")
-            continue
-        if not content:
-            errors.append(f"内容为空: {line}")
-            continue
-        user_id = int(qq_str)
-        nodes.append({
-            "type": "node",
-            "data": {
-                "uin": user_id,
-                "name": _get_nickname(ws, user_id, group_id),
-                "content": [{"type": "text", "data": {"text": content}}]
-            }
-        })
+        if _is_new_message_line(line):
+            qq_str, content = _split_first_colon(line)
+            content = (content or "").strip()
+            if qq_str is None or not qq_str.isdigit():
+                errors.append(f"无效QQ号: {line}")
+                continue
+            if not content:
+                errors.append(f"内容为空: {line}")
+                continue
+            flush()
+            cur = {"qq": qq_str, "parts": [content.replace("\\:", ":")]}
+        else:
+            if cur is None:
+                errors.append(f"格式错误（缺少冒号）: {line}")
+                continue
+            cur["parts"].append(line.replace("\\:", ":"))
+
+    flush()
 
     if not nodes:
         send_group_msg(ws, group_id, "没有可转发的消息，用法: ex.fake_msg\\nQQ号: 内容", True)
