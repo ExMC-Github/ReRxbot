@@ -44,7 +44,7 @@ config = {
             "defined": "defined.txt",
             "at": "modern.txt"
         },
-        "vit_enable": True,
+        "vit_enable": False,
         "vit_base_url": "https://yunwu.ai/v1",
         "vit_api_key": vit_ai_key,
         "vit_model": "gemini-3-flash-preview",

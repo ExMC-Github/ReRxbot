@@ -21,6 +21,8 @@ from .messages import (
     mark_msg_as_read,
     get_msg,
     get_msg_sync,
+    get_stranger_info_sync,
+    get_group_member_info_sync,
     resolve_sync_response,
 )
 from .group_manage import (
@@ -56,6 +58,8 @@ __all__ = [
     "mark_msg_as_read",
     "get_msg",
     "get_msg_sync",
+    "get_stranger_info_sync",
+    "get_group_member_info_sync",
     "resolve_sync_response",
     # group_manage
     "get_status",
