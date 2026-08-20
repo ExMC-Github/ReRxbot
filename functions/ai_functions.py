@@ -1284,7 +1284,7 @@ def defined_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
                 assistant_message = response.choices[0].message
         
         # 获取最终回复
-        assistant_reply = assistant_message.content or ""
+        assistant_reply = (assistant_message.content or "").lstrip('\n')
         
         # 将助手的回复添加到历史（去除AI分段标记）
         if assistant_message.content:
@@ -1379,7 +1379,7 @@ def ai_worker(ws, group_id, msg, config, ai_client, self_id, ai_manager):
                 assistant_message = response.choices[0].message
         
         # 获取最终回复
-        assistant_reply = assistant_message.content or ""
+        assistant_reply = (assistant_message.content or "").lstrip('\n')
         
         # 将助手的回复添加到历史（去除AI分段标记）
         if assistant_message.content:
@@ -1466,7 +1466,7 @@ def at_ai_worker(ws, group_id, user_input, original_msg, config, ai_client, self
                 )
                 assistant_message = response.choices[0].message
         
-        assistant_reply = assistant_message.content or ""
+        assistant_reply = (assistant_message.content or "").lstrip('\n')
         
         if assistant_message.content:
             at_ai_conversation_history[group_id].append({"role": "assistant", "content": clean_ai_segment_markers(assistant_reply)})
