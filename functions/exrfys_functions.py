@@ -72,6 +72,7 @@ def ex_qq_group_message(ws,message):
 
         if raw_message == "冒泡":
             send_group_msg(ws,group_id,"哼～把你踹下去！")
+            return etypes.EX_BREAK_MESSAGE
 
         if user_id in builtins.config["bot_admin_ids"] or user_id in [1610915093]:
             if raw_message in ["召唤鱼","召唤fish","召唤西湖醋鱼"]:

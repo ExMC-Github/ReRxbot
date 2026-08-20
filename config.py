@@ -1,5 +1,4 @@
 from encryption import rotor
-import pyconcrete
 from rotor_key import key
 rot_temp = rotor.newrotor(key)
 aikey = rot_temp.decrypt(b'\xd2D\x89}\x7f\xd6r\x9d\xd2\xca\x05P,U\x86E\xdc\x8do\xec\xd2\x0e\x03\xf5\xfc\xad\xd3p\xb7\xc6\xed\xf5\xa5\x9fP').decode('utf-8')
