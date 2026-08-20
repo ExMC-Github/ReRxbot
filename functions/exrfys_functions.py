@@ -70,6 +70,9 @@ def ex_qq_group_message(ws,message):
                     set_group_special_title(ws, group_id, user_id, title)
                     return etypes.EX_BREAK_MESSAGE
 
+        if raw_message == "冒泡":
+            send_group_msg(ws,group_id,"哼～把你踹下去！")
+
         if user_id in builtins.config["bot_admin_ids"] or user_id in [1610915093]:
             if raw_message in ["召唤鱼","召唤fish","召唤西湖醋鱼"]:
                 send_group_msg(ws,group_id,"[CQ:at,qq=2975227763] " + L["summon_fish_reply"],False)
