@@ -198,7 +198,7 @@ def _handle_fake_msg(ws, group_id, raw_message):
     errors = []
     name_cache = {}
     cur = None  # 当前累积的消息: {"qq": str, "parts": [str]}
-
+    send_group_msg(ws, group_id, "正在尝试生成聊天记录...")
     def flush():
         nonlocal cur
         if cur is None:
