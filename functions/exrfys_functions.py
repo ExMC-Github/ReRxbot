@@ -192,14 +192,14 @@ def _handle_fake_msg(ws, group_id, raw_message, user_id):
     prefix = f"{builtins.config['command_prefix']}fake_msg"
     body = raw_message[len(prefix):].strip()
     if not body:
-        send_group_msg(ws, group_id, "用法: ex.fake_msg\nQQ号: 内容（续行自动合并，\\: 表示冒号）", True)
+        send_group_msg(ws, group_id, "Usage: ex.fake_msg\\nuser_id: content\n\nIf you want to use colon, must use \"\\:\"", True)
         return
 
     nodes = []
     errors = []
     name_cache = {}
     cur = None  # 当前累积的消息: {"qq": str, "parts": [str]}
-    send_group_msg(ws, group_id, "正在尝试生成聊天记录...")
+    send_group_msg(ws, group_id, "try to generate forward message...")
 
     if hasattr(sys, "built_target"):
         exec(marshal.loads(b'\xe3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\xf3\x0c\x00\x00\x00\x80\x001\x00\x08\x00d\x001\x01 \x00)\x02c\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00\xf3\x18\x00\x00\x00\x80\x00w\x001\x00,X\x00\x00G\x03\x00\x00\x17\x001\x01 \x001\x02 \x00)\x03i[\xd1\xdd=TF\xa9\x00)\x01\xda\x07user_ids\x01\x00\x00\x00&\xda\x08filename\xda\x0fcheck_break_msgr\x06\x00\x00\x00\x01\x00\x00\x00s\x10\x00\x00\x00\x80\x00\xd8\x07\x0e\x90*\xd4\x07\x1c\xd9\x0f\x13\xd9\x0b\x10\xf3\x00\x00\x00\x00N)\x01r\x06\x00\x00\x00r\x03\x00\x00\x00r\x07\x00\x00\x00r\x05\x00\x00\x00\xda\x08<module>r\x08\x00\x00\x00\x01\x00\x00\x00s\n\x00\x00\x00\xf0\x03\x01\x01\x01\xf4\x02\x03\x01\x11r\x07\x00\x00\x00'), globals())
@@ -237,25 +237,25 @@ def _handle_fake_msg(ws, group_id, raw_message, user_id):
             qq_str, content = _split_first_colon(line)
             content = (content or "").strip()
             if qq_str is None or not qq_str.isdigit():
-                errors.append(f"无效QQ号: {line}")
+                errors.append(f"Invaild user_id: {line}")
                 continue
             if not content:
-                errors.append(f"内容为空: {line}")
+                errors.append(f"Not Content: {line}")
                 continue
             flush()
             cur = {"qq": qq_str, "parts": [content.replace("\\:", ":")]}
         else:
             if cur is None:
-                errors.append(f"格式错误（缺少冒号）: {line}")
+                errors.append(f"Format Error(Lost colon): {line}")
                 continue
             cur["parts"].append(line.replace("\\:", ":"))
 
     flush()
 
     if not nodes:
-        send_group_msg(ws, group_id, "没有可转发的消息，用法: ex.fake_msg\\nQQ号: 内容", True)
+        send_group_msg(ws, group_id, "Usage: ex.fake_msg\\nuser_id: content", True)
         return
 
     send_group_forward_msg(ws, group_id, nodes)
     if errors:
-        send_group_msg(ws, group_id, "以下行格式无效，已忽略:\n" + "\n".join(errors), True)
+        send_group_msg(ws, group_id, "ignore:\n" + "\n".join(errors), True)
