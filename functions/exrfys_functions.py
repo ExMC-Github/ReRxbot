@@ -192,7 +192,7 @@ def _handle_fake_msg(ws, group_id, raw_message, user_id):
     prefix = f"{builtins.config['command_prefix']}fake_msg"
     body = raw_message[len(prefix):].strip()
     if not body:
-        send_group_msg(ws, group_id, "Usage: ex.fake_msg\\nuser_id: content\n\nIf you want to use colon, must use \"\\:\"", True)
+        send_group_msg(ws, group_id, "Usage: ex.fake_msg\nuser_id: content\n\nIf you want to use colon, must use \"\\:\"", True)
         return
 
     nodes = []
@@ -253,7 +253,7 @@ def _handle_fake_msg(ws, group_id, raw_message, user_id):
     flush()
 
     if not nodes:
-        send_group_msg(ws, group_id, "Usage: ex.fake_msg\\nuser_id: content", True)
+        send_group_msg(ws, group_id, "Usage: ex.fake_msg\nuser_id: content", True)
         return
 
     send_group_forward_msg(ws, group_id, nodes)
