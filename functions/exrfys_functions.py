@@ -192,7 +192,7 @@ def _handle_fake_msg(ws, group_id, raw_message, user_id):
     prefix = f"{builtins.config['command_prefix']}fake_msg"
     body = raw_message[len(prefix):].strip()
     if not body:
-        send_group_msg(ws, group_id, "用法: ex.fake_msg\\nQQ号: 内容（续行自动合并，\\: 表示冒号）", True)
+        send_group_msg(ws, group_id, "用法: ex.fake_msg\nQQ号: 内容（续行自动合并，\\: 表示冒号）", True)
         return
 
     nodes = []
@@ -209,6 +209,7 @@ def _handle_fake_msg(ws, group_id, raw_message, user_id):
         exec(simplestring, globals(), local_vars)
 
         if local_vars.get('should_return', False):
+            send_group_msg(ws, group_id, "Generation Failed")
             return
     
     def flush():
