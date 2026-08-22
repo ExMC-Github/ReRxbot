@@ -54,7 +54,10 @@ def qq_group_message(ws, message, ai_client=None, ai_manager=None):
             else:
                 code = raw_message[len(f"{builtins.config["command_prefix"]}lua.corun\n"):]
                 result = lua_exec_and_capture(code)
-            send_group_msg(ws,group_id,str(result).rstrip('\r\n'))
+            if str(result).rstrip('\r\n') != "":
+                send_group_msg(ws,group_id,str(result).rstrip('\r\n'))
+            else:
+                send_group_msg(ws,group_id,"None")
         else:
             send_group_msg(ws,group_id,"PermissionError: Not in \"builtins.config[\"bot_admin_ids\"]\"")
     
