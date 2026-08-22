@@ -29,8 +29,9 @@ config = {
         "ai_model": "glm-4.5-flash",
         "ai_timeout_retry": 2,
         "at_ai_enable": True,
-        "ai_owner_group_future_mode": False,
+        "ai_owner_group_future_mode": True,
         "ai_memory_dir": "ai_memory",
+        "ai_memory_local_backup": True,
         "ai_memory_boto3_backup": False,
         "ai_memory_boto3_config": {
             "api": "https://cn-sy1.rains3.com",
@@ -50,7 +51,7 @@ config = {
         "vit_prompt": "用中文尽可能详细地描述这张图片",
         "vit_http_proxy": "http://127.0.0.1:7891",
         "vit_https_proxy": "http://127.0.0.1:7891",
-        "ai_python_exec": "ai-embed-python/python.exe",
+        "ai_python_exec": "ai-embed-python/python3.14t.exe",
         "ai_tools_http_proxy": "http://127.0.0.1:7890",
         "ai_tools_https_proxy": "http://127.0.0.1:7890",
         "blacklist_files": ["rotor_key.py", "rotor_key.pye"]

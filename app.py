@@ -80,17 +80,21 @@ def on_error(ws, error):
 def on_close(ws, close_status_code, close_msg):
     """连接关闭回调"""
     logger.info("连接已关闭")
-    if vars.Debug:
-        send_group_msg(ws,vars.tpd_group,L["conn_closed"])
     
     # 自动保存所有群的AI记忆
-    if has_unsaved_memory():
-        logger.info("检测到未保存的AI记忆，正在保存...")
-        saved_count = auto_save_all_memories(config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
-        logger.info(f"已自动保存 {saved_count} 个群的AI记忆")
+    try:
+        if has_unsaved_memory():
+            logger.info("检测到未保存的AI记忆，正在保存...")
+            saved_count = auto_save_all_memories(config["ai_settings"].get('ai_memory_dir', 'ai_memory'), config=config)
+            logger.info(f"已自动保存 {saved_count} 个群的AI记忆")
+    except Exception as e:
+        logger.error(f"自动保存AI记忆失败: {e}")
     
-    logger.remove()
-    compress_logs(os,datetime,tarfile,sys)
+    try:
+        logger.remove()
+        compress_logs(os,datetime,tarfile,sys)
+    except Exception as e:
+        print(f"压缩日志失败: {e}")
 
 def on_open(ws):
     """连接建立后的回调"""

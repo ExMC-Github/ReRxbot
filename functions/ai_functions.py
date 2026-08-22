@@ -1778,12 +1778,14 @@ def save_group_memory(group_id, memory_name=None, memory_dir="ai_memory", auto_s
         # 压缩数据
         compressed_data = _compress_data(data)
         
-        # 保存到本地文件
-        memory_file = os.path.join(memory_dir, filename)
-        with open(memory_file, 'wb') as f:
-            f.write(compressed_data)
-        
-        logger.info(f"群 {group_id} AI记忆已保存到本地: {memory_file}")
+        # 本地备份（默认开启，保持旧配置兼容）
+        if not config or config["ai_settings"].get('ai_memory_local_backup', True):
+            memory_file = os.path.join(memory_dir, filename)
+            with open(memory_file, 'wb') as f:
+                f.write(compressed_data)
+            logger.info(f"群 {group_id} AI记忆已保存到本地: {memory_file}")
+        else:
+            logger.info(f"群 {group_id} AI记忆未保存到本地（ai_memory_local_backup=False）")
         
         # boto3 备份（如果启用）
         if config and _is_boto3_backup_enabled(config):
@@ -1827,7 +1829,7 @@ def load_group_memory(group_id, memory_name, memory_dir="ai_memory", config=None
         compressed_data = None
         source = None
         
-        # 优先从本地加载
+        # 优先从本地加载（读取不受备份开关限制）
         if os.path.exists(memory_file):
             with open(memory_file, 'rb') as f:
                 compressed_data = f.read()
@@ -1843,12 +1845,13 @@ def load_group_memory(group_id, memory_name, memory_dir="ai_memory", config=None
                 source = L["memory_source_s3"]
                 logger.info(f"群 {group_id} 从 S3 恢复记忆: {s3_key}")
                 
-                # 同时保存到本地，便于下次快速加载
-                if not os.path.exists(memory_dir):
-                    os.makedirs(memory_dir)
-                with open(memory_file, 'wb') as f:
-                    f.write(compressed_data)
-                logger.info(f"群 {group_id} 记忆已同步到本地: {memory_file}")
+                # 同时保存到本地，便于下次快速加载（受本地备份开关控制，默认开启）
+                if not config or config["ai_settings"].get('ai_memory_local_backup', True):
+                    if not os.path.exists(memory_dir):
+                        os.makedirs(memory_dir)
+                    with open(memory_file, 'wb') as f:
+                        f.write(compressed_data)
+                    logger.info(f"群 {group_id} 记忆已同步到本地: {memory_file}")
             except Exception as e:
                 logger.warning(f"从 S3 加载记忆失败: {e}")
         
@@ -1927,6 +1930,13 @@ def auto_save_all_memories(memory_dir="ai_memory", config=None):
     """
     saved_count = 0
     
+    # 本地备份和 boto3 备份都关闭时才跳过自动保存（本地备份默认开启，保持旧配置兼容）
+    local_enabled = not config or config["ai_settings"].get('ai_memory_local_backup', True)
+    boto3_enabled = bool(config and _is_boto3_backup_enabled(config))
+    if not local_enabled and not boto3_enabled:
+        logger.info("自动保存已跳过（ai_memory_local_backup 和 ai_memory_boto3_backup 均为 False）")
+        return saved_count
+    
     # 保存所有有AI对话历史的群
     for group_id in ai_conversation_history.keys():
         if ai_conversation_history[group_id]:  # 只保存有内容的记忆
@@ -1953,17 +1963,17 @@ def auto_save_all_memories(memory_dir="ai_memory", config=None):
 
 def has_unsaved_memory():
     """检查是否有未保存的记忆"""
-    # 检查是否有群有对话历史
+    # 检查是否有群有对话历史（超过系统提示的内容）
     for group_id, history in ai_conversation_history.items():
-        if len(history) > 1:  # 超过系统提示的内容
+        if len(history) > 1:  # 有用户和AI的对话内容
             return True
     
     for group_id, history in at_ai_conversation_history.items():
-        if len(history) > 1:  # 超过系统提示的内容
+        if len(history) > 1:  # 有用户和AI的对话内容
             return True
     
     for group_id, history in defined_conversation_history.items():
-        if len(history) > 1:  # 超过系统提示的内容
+        if len(history) > 1:  # 有用户和AI的对话内容
             return True
     
     return False
@@ -1984,7 +1994,7 @@ def load_auto_saved_memories(memory_dir="ai_memory", config=None, ai_manager=Non
     try:
         pattern = re.compile(r'^(normal|at|defined)_autosave_(\d+)_(\d{8}_\d{6})\.dat$')
         
-        # 从本地加载自动保存的记忆
+        # 从本地加载自动保存的记忆（读取不受备份开关限制）
         if os.path.exists(memory_dir):
             for filename in os.listdir(memory_dir):
                 if filename.endswith('.dat'):
